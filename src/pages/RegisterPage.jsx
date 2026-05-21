@@ -3,20 +3,23 @@ import {
 } from "react";
 
 import {
-    useNavigate,
-    Link
+    Link,
+    useNavigate
 } from "react-router-dom";
 
-import api from "../api/api";
-
 import {
+    Alert,
     Box,
+    Button,
     Card,
     CardContent,
-    Typography,
+    Container,
+    Stack,
     TextField,
-    Button
+    Typography
 } from "@mui/material";
+
+import api from "../api/api";
 
 
 function RegisterPage() {
@@ -34,22 +37,22 @@ function RegisterPage() {
             apartment: ""
         });
 
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
 
         setFormData({
             ...formData,
-            [e.target.name]:
-                e.target.value
+            [e.target.name]: e.target.value
         });
     };
 
-
-    const handleRegister = async (
-        e
-    ) => {
+    const handleRegister = async (e) => {
 
         e.preventDefault();
+        setError("");
+        setLoading(true);
 
         try {
 
@@ -61,22 +64,15 @@ function RegisterPage() {
                 }
             );
 
-            alert(
-                "Регистрация успешна"
-            );
-
             navigate("/");
 
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                "Ошибка регистрации"
-            );
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось зарегистрироваться. Проверьте данные.");
+        } finally {
+            setLoading(false);
         }
     };
-
 
     return (
 
@@ -84,132 +80,144 @@ function RegisterPage() {
             sx={{
                 minHeight: "100vh",
                 display: "flex",
-                justifyContent: "center",
                 alignItems: "center",
-                backgroundColor:
-                    "#f4f6f8"
+                py: 6
             }}
         >
+            <Container maxWidth="md">
+                <Card>
+                    <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+                        <Stack spacing={3}>
+                            <Box>
+                                <Typography variant="h4" gutterBottom>
+                                    Регистрация жильца
+                                </Typography>
+                                <Typography color="text.secondary">
+                                    Укажите контакты и адрес, чтобы заявки автоматически привязывались к квартире.
+                                </Typography>
+                            </Box>
 
-            <Card
-                sx={{
-                    width: 450,
-                    borderRadius: 4,
-                    boxShadow: 4
-                }}
-            >
+                            {error && (
+                                <Alert severity="error">
+                                    {error}
+                                </Alert>
+                            )}
 
-                <CardContent>
+                            <Stack
+                                component="form"
+                                spacing={2}
+                                onSubmit={handleRegister}
+                            >
+                                <Box
+                                    sx={{
+                                        display: "grid",
+                                        gridTemplateColumns: {
+                                            xs: "1fr",
+                                            sm: "1fr 1fr"
+                                        },
+                                        gap: 2
+                                    }}
+                                >
+                                    <TextField
+                                        label="ФИО"
+                                        name="full_name"
+                                        value={formData.full_name}
+                                        required
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
 
-                    <Typography
-                        variant="h4"
-                        gutterBottom
-                        fontWeight="bold"
-                    >
-                        Регистрация
-                    </Typography>
+                                    <TextField
+                                        label="Телефон"
+                                        name="phone"
+                                        value={formData.phone}
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
 
-                    <form
-                        onSubmit={
-                            handleRegister
-                        }
-                    >
+                                    <TextField
+                                        label="Email"
+                                        name="email"
+                                        type="email"
+                                        value={formData.email}
+                                        required
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
 
-                        <TextField
-                            fullWidth
-                            label="ФИО"
-                            name="full_name"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
+                                    <TextField
+                                        label="Пароль"
+                                        type="password"
+                                        name="password"
+                                        value={formData.password}
+                                        required
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
 
-                        <TextField
-                            fullWidth
-                            label="Почта"
-                            name="email"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
+                                    <TextField
+                                        label="Улица"
+                                        name="street"
+                                        value={formData.street}
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
 
-                        <TextField
-                            fullWidth
-                            label="Телефон"
-                            name="phone"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
+                                    <Box
+                                        sx={{
+                                            display: "grid",
+                                            gridTemplateColumns: "1fr 1fr",
+                                            gap: 2
+                                        }}
+                                    >
+                                        <TextField
+                                            label="Дом"
+                                            name="house"
+                                            value={formData.house}
+                                            fullWidth
+                                            onChange={handleChange}
+                                        />
 
-                        <TextField
-                            fullWidth
-                            label="Улица"
-                            name="street"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
+                                        <TextField
+                                            label="Квартира"
+                                            name="apartment"
+                                            value={formData.apartment}
+                                            fullWidth
+                                            onChange={handleChange}
+                                        />
+                                    </Box>
+                                </Box>
 
-                        <TextField
-                            fullWidth
-                            label="Дом"
-                            name="house"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
+                                <Button
+                                    fullWidth
+                                    variant="contained"
+                                    type="submit"
+                                    size="large"
+                                    disabled={loading}
+                                >
+                                    {loading ? "Создаем аккаунт..." : "Зарегистрироваться"}
+                                </Button>
+                            </Stack>
 
-                        <TextField
-                            fullWidth
-                            label="Квартира"
-                            name="apartment"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
-
-                        <TextField
-                            fullWidth
-                            label="Пароль"
-                            type="password"
-                            name="password"
-                            margin="normal"
-                            onChange={
-                                handleChange
-                            }
-                        />
-
-                        <Button
-                            fullWidth
-                            variant="contained"
-                            type="submit"
-                            sx={{
-                                mt: 2,
-                                borderRadius: 3
-                            }}
-                        >
-                            Зарегистрироваться
-                        </Button>
-
-                    </form>
-
-                    <br />
-
-                    <Link to="/">
-                        Назад ко входу
-                    </Link>
-
-                </CardContent>
-
-            </Card>
-
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                textAlign="center"
+                            >
+                                Уже есть аккаунт?{" "}
+                                <Typography
+                                    component={Link}
+                                    to="/"
+                                    color="primary"
+                                    fontWeight={700}
+                                >
+                                    Войти
+                                </Typography>
+                            </Typography>
+                        </Stack>
+                    </CardContent>
+                </Card>
+            </Container>
         </Box>
     );
 }

@@ -2,19 +2,20 @@ import {
     useState
 } from "react";
 
-import api from "../api/api";
-
-import Navbar
-from "../components/Navbar";
-
 import {
+    Alert,
     Box,
+    Button,
     Card,
     CardContent,
-    Typography,
+    Container,
+    Stack,
     TextField,
-    Button
+    Typography
 } from "@mui/material";
+
+import api from "../api/api";
+import Navbar from "../components/Navbar";
 
 
 function CreateTicketPage() {
@@ -22,134 +23,115 @@ function CreateTicketPage() {
     const [description, setDescription] =
         useState("");
 
+    const [message, setMessage] =
+        useState("");
 
-    const handleSubmit = async (
-        e
-    ) => {
+    const [error, setError] =
+        useState("");
+
+    const [loading, setLoading] =
+        useState(false);
+
+    const handleSubmit = async (e) => {
 
         e.preventDefault();
+        setMessage("");
+        setError("");
+        setLoading(true);
 
         try {
 
             const token =
-                localStorage.getItem(
-                    "token"
-                );
+                localStorage.getItem("token");
 
             await api.post(
                 "/tickets/",
                 {
-                    description:
-                        description,
-
+                    description,
                     category_id: 1
                 },
                 {
                     headers: {
-                        Authorization:
-                            `Bearer ${token}`
+                        Authorization: `Bearer ${token}`
                     }
                 }
             );
 
-            alert(
-                "Заявка создана"
-            );
-
+            setMessage("Заявка создана. Ее уже можно отслеживать в списке.");
             setDescription("");
 
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                "Ошибка создания заявки"
-            );
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось создать заявку.");
+        } finally {
+            setLoading(false);
         }
     };
 
-
     return (
 
-        <Box
-            sx={{
-                backgroundColor:
-                    "#f4f6f8",
-                minHeight: "100vh"
-            }}
-        >
-
+        <Box sx={{ minHeight: "100vh" }}>
             <Navbar />
 
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent:
-                        "center",
-                    pt: 6
-                }}
+            <Container
+                maxWidth="md"
+                sx={{ py: 4 }}
             >
+                <Card>
+                    <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+                        <Stack spacing={3}>
+                            <Box>
+                                <Typography variant="h4" gutterBottom>
+                                    Создание заявки
+                                </Typography>
+                                <Typography color="text.secondary">
+                                    Опишите проблему, а адрес будет подтянут из вашего профиля.
+                                </Typography>
+                            </Box>
 
-                <Card
-                    sx={{
-                        width: 500,
-                        borderRadius: 4,
-                        boxShadow: 4
-                    }}
-                >
+                            {message && (
+                                <Alert severity="success">
+                                    {message}
+                                </Alert>
+                            )}
 
-                    <CardContent>
+                            {error && (
+                                <Alert severity="error">
+                                    {error}
+                                </Alert>
+                            )}
 
-                        <Typography
-                            variant="h4"
-                            fontWeight="bold"
-                            gutterBottom
-                        >
-                            Создание заявки
-                        </Typography>
-
-                        <form
-                            onSubmit={
-                                handleSubmit
-                            }
-                        >
-
-                            <TextField
-                                fullWidth
-                                multiline
-                                rows={4}
-                                label="Описание проблемы"
-                                margin="normal"
-                                value={
-                                    description
-                                }
-                                onChange={(e) =>
-                                    setDescription(
-                                        e.target.value
-                                    )
-                                }
-                            />
-
-                            <Button
-                                fullWidth
-                                type="submit"
-                                variant="contained"
-                                sx={{
-                                    mt: 2,
-                                    borderRadius: 3
-                                }}
+                            <Stack
+                                component="form"
+                                spacing={2}
+                                onSubmit={handleSubmit}
                             >
-                                Создать заявку
-                            </Button>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    minRows={6}
+                                    label="Описание проблемы"
+                                    placeholder="Например: в подъезде не работает освещение..."
+                                    value={description}
+                                    required
+                                    onChange={(e) =>
+                                        setDescription(e.target.value)
+                                    }
+                                />
 
-                        </form>
-
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    size="large"
+                                    disabled={loading}
+                                >
+                                    {loading ? "Отправляем..." : "Создать заявку"}
+                                </Button>
+                            </Stack>
+                        </Stack>
                     </CardContent>
-
                 </Card>
-
-            </Box>
-
+            </Container>
         </Box>
     );
 }

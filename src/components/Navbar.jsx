@@ -1,5 +1,6 @@
 import {
     Link,
+    useLocation,
     useNavigate
 } from "react-router-dom";
 
@@ -12,111 +13,134 @@ import {
     Toolbar,
     Typography,
     Button,
-    Box
+    Box,
+    Container,
+    Stack
 } from "@mui/material";
 
 
 function Navbar() {
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     const token =
-        localStorage.getItem(
-            "token"
-        );
+        localStorage.getItem("token");
 
     let role = null;
 
     try {
 
         if (token) {
-
-            const decoded =
-                jwtDecode(token);
-
-            role = decoded.role;
+            role = jwtDecode(token).role;
         }
 
     } catch (error) {
-
         console.error(error);
     }
 
+    const navItems = [
+        {
+            label: "Главная",
+            to: "/dashboard"
+        },
+        {
+            label: "Создать заявку",
+            to: "/create-ticket"
+        },
+        ...(role === "dispatcher"
+            ? [{
+                label: "Диспетчер",
+                to: "/dispatcher"
+            }]
+            : []),
+        {
+            label: "Профиль",
+            to: "/profile"
+        }
+    ];
+
     const handleLogout = () => {
 
-        localStorage.removeItem(
-            "token"
-        );
-
+        localStorage.removeItem("token");
         navigate("/");
     };
 
     return (
 
-        <AppBar position="static">
-
-            <Toolbar>
-
-                <Typography
-                    variant="h6"
+        <AppBar
+            position="sticky"
+            elevation={0}
+            sx={{
+                backgroundColor: "rgba(255,255,255,0.92)",
+                color: "text.primary",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                backdropFilter: "blur(12px)"
+            }}
+        >
+            <Container maxWidth="lg">
+                <Toolbar
+                    disableGutters
                     sx={{
-                        flexGrow: 1
+                        minHeight: 72,
+                        gap: 2,
+                        flexWrap: "wrap",
+                        py: { xs: 1.5, md: 0 }
                     }}
                 >
-                    ТСЖ система
-                </Typography>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <Typography
+                            variant="h6"
+                            sx={{ lineHeight: 1.1 }}
+                        >
+                            ТСЖ Сервис
+                        </Typography>
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                        >
+                            Заявки жильцов и диспетчерская
+                        </Typography>
+                    </Box>
 
-                <Box>
-
-                    <Button
-                        color="inherit"
-                        component={Link}
-                        to="/dashboard"
+                    <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{
+                            flexWrap: "wrap",
+                            rowGap: 1,
+                            justifyContent: { xs: "flex-start", md: "flex-end" }
+                        }}
                     >
-                        Главная
-                    </Button>
+                        {navItems.map((item) => {
 
-                    <Button
-                        color="inherit"
-                        component={Link}
-                        to="/create-ticket"
-                    >
-                        Создать заявку
-                    </Button>
+                            const active =
+                                location.pathname === item.to;
 
-                    {role ===
-                        "dispatcher" && (
+                            return (
+                                <Button
+                                    key={item.to}
+                                    component={Link}
+                                    to={item.to}
+                                    variant={active ? "contained" : "text"}
+                                    color={active ? "primary" : "inherit"}
+                                >
+                                    {item.label}
+                                </Button>
+                            );
+                        })}
 
                         <Button
+                            variant="outlined"
                             color="inherit"
-                            component={Link}
-                            to="/dispatcher"
+                            onClick={handleLogout}
                         >
-                            Панель диспетчера
+                            Выйти
                         </Button>
-                    )}
-					
-                        <Button
-                            color="inherit"
-                            component={Link}
-                            to="/profile"
-                        >
-                            Профиль
-                        </Button>					
-
-                    <Button
-                        color="inherit"
-                        onClick={
-                            handleLogout
-                        }
-                    >
-                        Выход
-                    </Button>
-
-                </Box>
-
-            </Toolbar>
-
+                    </Stack>
+                </Toolbar>
+            </Container>
         </AppBar>
     );
 }

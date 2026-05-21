@@ -1,29 +1,41 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Container,
+    Stack,
+    TextField,
+    Typography
+} from "@mui/material";
 
 import api from "../api/api";
-
-import { Link } from "react-router-dom";
 
 
 function LoginPage() {
 
-    const [email, setEmail] = useState("");
+    const navigate = useNavigate();
 
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-	
-	const navigate = useNavigate();
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const handleLogin = async (e) => {
 
         e.preventDefault();
+        setError("");
+        setLoading(true);
 
         try {
 
             const formData = new FormData();
 
             formData.append("username", email);
-
             formData.append("password", password);
 
             const response = await api.post(
@@ -38,60 +50,101 @@ function LoginPage() {
 
             navigate("/dashboard");
 
-        } catch (error) {
-
-            alert("Ошибка входа");
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось войти. Проверьте email и пароль.");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
 
-        <div style={{ padding: "40px" }}>
+        <Box
+            sx={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                py: 6
+            }}
+        >
+            <Container maxWidth="sm">
+                <Card>
+                    <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+                        <Stack spacing={3}>
+                            <Box>
+                                <Typography variant="h4" gutterBottom>
+                                    Вход в систему
+                                </Typography>
+                                <Typography color="text.secondary">
+                                    Авторизуйтесь, чтобы создавать и отслеживать заявки ТСЖ.
+                                </Typography>
+                            </Box>
 
-            <h1>ТСЖ Вход</h1>
+                            {error && (
+                                <Alert severity="error">
+                                    {error}
+                                </Alert>
+                            )}
 
-            <form onSubmit={handleLogin}>
+                            <Stack
+                                component="form"
+                                spacing={2}
+                                onSubmit={handleLogin}
+                            >
+                                <TextField
+                                    label="Email"
+                                    type="email"
+                                    value={email}
+                                    required
+                                    fullWidth
+                                    onChange={(e) =>
+                                        setEmail(e.target.value)
+                                    }
+                                />
 
-                <div>
-                    <input
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) =>
-                            setEmail(e.target.value)
-                        }
-                    />
-                </div>
+                                <TextField
+                                    label="Пароль"
+                                    type="password"
+                                    value={password}
+                                    required
+                                    fullWidth
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                />
 
-                <br />
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    size="large"
+                                    disabled={loading}
+                                    fullWidth
+                                >
+                                    {loading ? "Входим..." : "Войти"}
+                                </Button>
+                            </Stack>
 
-                <div>
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) =>
-                            setPassword(e.target.value)
-                        }
-                    />
-                </div>
-
-                <br />
-
-                <button type="submit">
-                    Вход
-                </button>
-				
-				<br />
-				<br />
-
-				<Link to="/register">
-					Регистрация
-				</Link>
-
-            </form>
-
-        </div>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                textAlign="center"
+                            >
+                                Нет аккаунта?{" "}
+                                <Typography
+                                    component={Link}
+                                    to="/register"
+                                    color="primary"
+                                    fontWeight={700}
+                                >
+                                    Зарегистрироваться
+                                </Typography>
+                            </Typography>
+                        </Stack>
+                    </CardContent>
+                </Card>
+            </Container>
+        </Box>
     );
 }
 

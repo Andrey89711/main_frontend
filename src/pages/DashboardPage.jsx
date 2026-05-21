@@ -3,24 +3,37 @@ import {
     useState
 } from "react";
 
-import api from "../api/api";
-
-import Navbar
-from "../components/Navbar";
-
 import {
     Link
 } from "react-router-dom";
 
 import {
+    Alert,
+    Box,
+    Button,
     Card,
     CardContent,
-    Typography,
-    Grid,
-    Button,
     Chip,
-    Box
+    Container,
+    Stack,
+    Typography
 } from "@mui/material";
+
+import api from "../api/api";
+import Navbar from "../components/Navbar";
+
+
+const statusLabels = {
+    new: "Новая",
+    in_progress: "В работе",
+    completed: "Завершена"
+};
+
+const statusColors = {
+    new: "error",
+    in_progress: "warning",
+    completed: "success"
+};
 
 
 function DashboardPage() {
@@ -28,341 +41,197 @@ function DashboardPage() {
     const [tickets, setTickets] =
         useState([]);
 
+    const [error, setError] =
+        useState("");
+
     useEffect(() => {
-
         fetchTickets();
-
     }, []);
-
 
     const fetchTickets = async () => {
 
         try {
 
             const token =
-                localStorage.getItem(
-                    "token"
-                );
+                localStorage.getItem("token");
 
             const response =
                 await api.get(
                     "/tickets/",
                     {
                         headers: {
-                            Authorization:
-                                `Bearer ${token}`
+                            Authorization: `Bearer ${token}`
                         }
                     }
                 );
 
-            setTickets(
-                response.data
-            );
+            setTickets(response.data);
 
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                "Failed to load tickets"
-            );
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить заявки.");
         }
     };
 
-
-    const getStatusColor = (
-        status
-    ) => {
-
-        switch (status) {
-
-            case "new":
-                return "error";
-
-            case "in_progress":
-                return "warning";
-
-            case "completed":
-                return "success";
-
-            default:
-                return "default";
+    const stats = [
+        {
+            label: "Новые",
+            value: tickets.filter((ticket) =>
+                ticket.status === "new"
+            ).length
+        },
+        {
+            label: "В работе",
+            value: tickets.filter((ticket) =>
+                ticket.status === "in_progress"
+            ).length
+        },
+        {
+            label: "Завершенные",
+            value: tickets.filter((ticket) =>
+                ticket.status === "completed"
+            ).length
         }
-    };
-	
-	const getStatusText = (status) => {
-
-		switch (status) {
-
-			case "new":
-				return "Новая";
-
-			case "in_progress":
-				return "В работе";
-
-			case "completed":
-				return "Завершена";
-
-			default:
-				return status;
-		}
-	};
-
-
-    const newCount = tickets.filter(
-        t => t.status === "new"
-    ).length;
-
-    const progressCount =
-        tickets.filter(
-            t =>
-                t.status ===
-                "in_progress"
-        ).length;
-
-    const completedCount =
-        tickets.filter(
-            t =>
-                t.status ===
-                "completed"
-        ).length;
-
+    ];
 
     return (
 
-        <Box
-            sx={{
-                backgroundColor:
-                    "#f4f6f8",
-                minHeight: "100vh"
-            }}
-        >
-
+        <Box sx={{ minHeight: "100vh" }}>
             <Navbar />
 
-            <Box sx={{ p: 4 }}>
+            <Container
+                maxWidth="lg"
+                sx={{ py: 4 }}
+            >
+                <Stack spacing={3}>
+                    <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={2}
+                        alignItems={{ xs: "stretch", sm: "center" }}
+                        justifyContent="space-between"
+                    >
+                        <Box>
+                            <Typography variant="h4" gutterBottom>
+                                Мои заявки
+                            </Typography>
+                            <Typography color="text.secondary">
+                                Следите за статусами обращений и открывайте детали заявки.
+                            </Typography>
+                        </Box>
 
-                <Typography
-                    variant="h4"
-                    fontWeight="bold"
-                    gutterBottom
-                >
-                    Мои заявки
-                </Typography>
+                        <Button
+                            component={Link}
+                            to="/create-ticket"
+                            variant="contained"
+                            size="large"
+                        >
+                            Создать заявку
+                        </Button>
+                    </Stack>
 
-                <Link to="/create-ticket">
+                    {error && (
+                        <Alert severity="error">
+                            {error}
+                        </Alert>
+                    )}
 
-                    <Button
-                        variant="contained"
-                        size="large"
+                    <Box
                         sx={{
-                            borderRadius: 3,
-                            mb: 3
+                            display: "grid",
+                            gridTemplateColumns: {
+                                xs: "1fr",
+                                sm: "repeat(3, 1fr)"
+                            },
+                            gap: 2
                         }}
                     >
-                        Создать заявку
-                    </Button>
+                        {stats.map((item) => (
+                            <Card key={item.label}>
+                                <CardContent>
+                                    <Typography
+                                        color="text.secondary"
+                                        gutterBottom
+                                    >
+                                        {item.label}
+                                    </Typography>
+                                    <Typography variant="h4">
+                                        {item.value}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Box>
 
-                </Link>
+                    <Stack spacing={2}>
+                        {tickets.length === 0 && !error && (
+                            <Card>
+                                <CardContent sx={{ py: 5, textAlign: "center" }}>
+                                    <Typography variant="h6" gutterBottom>
+                                        Заявок пока нет
+                                    </Typography>
+                                    <Typography color="text.secondary">
+                                        Создайте первое обращение, и оно появится здесь.
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        )}
 
-                <Grid
-                    container
-                    spacing={3}
-                    sx={{ mb: 4 }}
-                >
+                        {tickets.map((ticket) => (
+                            <Card key={ticket.id}>
+                                <CardContent>
+                                    <Stack
+                                        direction={{ xs: "column", md: "row" }}
+                                        spacing={2}
+                                        justifyContent="space-between"
+                                    >
+                                        <Stack spacing={1.5}>
+                                            <Typography variant="h6">
+                                                Заявка #{ticket.id}
+                                            </Typography>
 
-                    <Grid
-                        item
-                        xs={12}
-                        md={4}
-                    >
+                                            <Typography color="text.secondary">
+                                                {ticket.description}
+                                            </Typography>
 
-                        <Card
-                            sx={{
-                                borderRadius: 4,
-                                boxShadow: 3
-                            }}
-                        >
+                                            <Typography variant="body2">
+                                                Адрес:{" "}
+                                                {ticket.address
+                                                    ? `${ticket.address.street}, д. ${ticket.address.house}, кв. ${ticket.address.apartment}`
+                                                    : "не указан"}
+                                            </Typography>
 
-                            <CardContent>
+                                            <Stack
+                                                direction="row"
+                                                spacing={1}
+                                                sx={{ flexWrap: "wrap", rowGap: 1 }}
+                                            >
+                                                <Chip
+                                                    label={statusLabels[ticket.status] || ticket.status}
+                                                    color={statusColors[ticket.status] || "default"}
+                                                />
+                                                <Chip
+                                                    label={`Приоритет: ${ticket.priority}`}
+                                                    variant="outlined"
+                                                />
+                                            </Stack>
+                                        </Stack>
 
-                                <Typography
-                                    color="text.secondary"
-                                >
-                                    Новые
-                                </Typography>
-
-                                <Typography
-                                    variant="h3"
-                                    fontWeight="bold"
-                                >
-                                    {newCount}
-                                </Typography>
-
-                            </CardContent>
-
-                        </Card>
-
-                    </Grid>
-
-                    <Grid
-                        item
-                        xs={12}
-                        md={4}
-                    >
-
-                        <Card
-                            sx={{
-                                borderRadius: 4,
-                                boxShadow: 3
-                            }}
-                        >
-
-                            <CardContent>
-
-                                <Typography
-                                    color="text.secondary"
-                                >
-                                    В работе
-                                </Typography>
-
-                                <Typography
-                                    variant="h3"
-                                    fontWeight="bold"
-                                >
-                                    {progressCount}
-                                </Typography>
-
-                            </CardContent>
-
-                        </Card>
-
-                    </Grid>
-
-                    <Grid
-                        item
-                        xs={12}
-                        md={4}
-                    >
-
-                        <Card
-                            sx={{
-                                borderRadius: 4,
-                                boxShadow: 3
-                            }}
-                        >
-
-                            <CardContent>
-
-                                <Typography
-                                    color="text.secondary"
-                                >
-                                    Завершённые
-                                </Typography>
-
-                                <Typography
-                                    variant="h3"
-                                    fontWeight="bold"
-                                >
-                                    {completedCount}
-                                </Typography>
-
-                            </CardContent>
-
-                        </Card>
-
-                    </Grid>
-
-                </Grid>
-
-                {tickets.map((ticket) => (
-
-                    <Card
-                        key={ticket.id}
-                        sx={{
-                            mb: 3,
-                            borderRadius: 4,
-                            boxShadow: 2
-                        }}
-                    >
-
-                        <CardContent>
-
-                            <Typography
-                                variant="h6"
-                                fontWeight="bold"
-                                gutterBottom
-                            >
-                                Заявка №{ticket.id}
-                            </Typography>
-
-                            <Typography
-                                sx={{
-                                    mb: 2
-                                }}
-                            >
-                                {ticket.description}
-                            </Typography>
-							
-							<Typography
-								sx={{ mb: 2 }}
-							>
-								Адрес:
-								{" "}
-								{ticket.address?.street}
-								,
-								д.
-								{" "}
-								{ticket.address?.house}
-								,
-								кв.
-								{" "}
-								{ticket.address?.apartment}
-							</Typography>
-
-                            <Chip
-                                label={
-                                    getStatusText(ticket.status)
-                                }
-                                color={
-                                    getStatusColor(
-                                        ticket.status
-                                    )
-                                }
-                                sx={{
-                                    mr: 2
-                                }}
-                            />
-
-                            <Chip
-                                label={
-                                    `Приоритет: ${ticket.priority}`
-                                }
-                                variant="outlined"
-                            />
-
-                            <br />
-                            <br />
-
-                            <Link
-                                to={`/tickets/${ticket.id}`}
-                            >
-
-                                <Button
-                                    variant="outlined"
-                                >
-                                    Открыть
-                                </Button>
-
-                            </Link>
-
-                        </CardContent>
-
-                    </Card>
-                ))}
-
-            </Box>
-
+                                        <Box>
+                                            <Button
+                                                component={Link}
+                                                to={`/tickets/${ticket.id}`}
+                                                variant="outlined"
+                                            >
+                                                Открыть
+                                            </Button>
+                                        </Box>
+                                    </Stack>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Stack>
+                </Stack>
+            </Container>
         </Box>
     );
 }

@@ -1,46 +1,66 @@
-import { useEffect, useState } from "react";
-import api from "../api/api";
-import Navbar from "../components/Navbar";
+import {
+    useEffect,
+    useState
+} from "react";
 
 import {
+    Alert,
     Box,
+    Button,
     Card,
     CardContent,
-    Typography,
+    Container,
+    Stack,
     TextField,
-    Button
+    Typography
 } from "@mui/material";
+
+import api from "../api/api";
+import Navbar from "../components/Navbar";
 
 
 function ProfilePage() {
 
-    const [form, setForm] = useState({
-        full_name: "",
-        email: "",
-        phone: "",
-        street: "",
-        house: "",
-        apartment: "",
-        password: ""
-    });
+    const [form, setForm] =
+        useState({
+            full_name: "",
+            email: "",
+            phone: "",
+            street: "",
+            house: "",
+            apartment: "",
+            password: ""
+        });
 
+    const [message, setMessage] =
+        useState("");
+
+    const [error, setError] =
+        useState("");
+
+    const [loading, setLoading] =
+        useState(false);
 
     useEffect(() => {
         loadProfile();
     }, []);
 
-
     const loadProfile = async () => {
 
         try {
 
-            const token = localStorage.getItem("token");
+            const token =
+                localStorage.getItem("token");
 
-            const res = await api.get("/users/me", {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            const res =
+                await api.get(
+                    "/users/me",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    }
+                );
 
             setForm({
                 ...res.data,
@@ -49,24 +69,28 @@ function ProfilePage() {
 
         } catch (err) {
             console.error(err);
-            alert("Ошибка загрузки профиля");
+            setError("Не удалось загрузить профиль.");
         }
     };
 
-
     const handleChange = (e) => {
+
         setForm({
             ...form,
             [e.target.name]: e.target.value
         });
     };
 
-
     const saveProfile = async () => {
+
+        setMessage("");
+        setError("");
+        setLoading(true);
 
         try {
 
-            const token = localStorage.getItem("token");
+            const token =
+                localStorage.getItem("token");
 
             await api.put(
                 "/users/me",
@@ -78,109 +102,138 @@ function ProfilePage() {
                 }
             );
 
-            alert("Профиль обновлён");
+            setMessage("Профиль обновлен.");
 
         } catch (err) {
             console.error(err);
-            alert("Ошибка сохранения");
+            setError("Не удалось сохранить профиль.");
+        } finally {
+            setLoading(false);
         }
     };
 
-
     return (
-        <Box sx={{ backgroundColor: "#f4f6f8", minHeight: "100vh" }}>
 
+        <Box sx={{ minHeight: "100vh" }}>
             <Navbar />
 
-            <Box sx={{ display: "flex", justifyContent: "center", pt: 5 }}>
+            <Container
+                maxWidth="md"
+                sx={{ py: 4 }}
+            >
+                <Card>
+                    <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+                        <Stack spacing={3}>
+                            <Box>
+                                <Typography variant="h4" gutterBottom>
+                                    Личный кабинет
+                                </Typography>
+                                <Typography color="text.secondary">
+                                    Контактные данные и адрес проживания.
+                                </Typography>
+                            </Box>
 
-                <Card sx={{ width: 500, borderRadius: 4 }}>
+                            {message && (
+                                <Alert severity="success">
+                                    {message}
+                                </Alert>
+                            )}
 
-                    <CardContent>
+                            {error && (
+                                <Alert severity="error">
+                                    {error}
+                                </Alert>
+                            )}
 
-                        <Typography variant="h5" fontWeight="bold" gutterBottom>
-                            Личный кабинет
-                        </Typography>
+                            <Box
+                                sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: {
+                                        xs: "1fr",
+                                        sm: "1fr 1fr"
+                                    },
+                                    gap: 2
+                                }}
+                            >
+                                <TextField
+                                    fullWidth
+                                    label="ФИО"
+                                    name="full_name"
+                                    value={form.full_name}
+                                    onChange={handleChange}
+                                />
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="ФИО"
-                            name="full_name"
-                            value={form.full_name}
-                            onChange={handleChange}
-                        />
+                                <TextField
+                                    fullWidth
+                                    label="Email"
+                                    name="email"
+                                    value={form.email}
+                                    onChange={handleChange}
+                                />
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Email"
-                            name="email"
-                            value={form.email}
-                            onChange={handleChange}
-                        />
+                                <TextField
+                                    fullWidth
+                                    label="Телефон"
+                                    name="phone"
+                                    value={form.phone || ""}
+                                    onChange={handleChange}
+                                />
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Телефон"
-                            name="phone"
-                            value={form.phone}
-                            onChange={handleChange}
-                        />
+                                <TextField
+                                    fullWidth
+                                    label="Новый пароль"
+                                    type="password"
+                                    name="password"
+                                    value={form.password}
+                                    onChange={handleChange}
+                                />
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Улица"
-                            name="street"
-                            value={form.street}
-                            onChange={handleChange}
-                        />
+                                <TextField
+                                    fullWidth
+                                    label="Улица"
+                                    name="street"
+                                    value={form.street || ""}
+                                    onChange={handleChange}
+                                />
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Дом"
-                            name="house"
-                            value={form.house}
-                            onChange={handleChange}
-                        />
+                                <Box
+                                    sx={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: 2
+                                    }}
+                                >
+                                    <TextField
+                                        fullWidth
+                                        label="Дом"
+                                        name="house"
+                                        value={form.house || ""}
+                                        onChange={handleChange}
+                                    />
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Квартира"
-                            name="apartment"
-                            value={form.apartment}
-                            onChange={handleChange}
-                        />
+                                    <TextField
+                                        fullWidth
+                                        label="Квартира"
+                                        name="apartment"
+                                        value={form.apartment || ""}
+                                        onChange={handleChange}
+                                    />
+                                </Box>
+                            </Box>
 
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Новый пароль"
-                            type="password"
-                            name="password"
-                            value={form.password}
-                            onChange={handleChange}
-                        />
-
-                        <Button
-                            fullWidth
-                            variant="contained"
-                            sx={{ mt: 2, borderRadius: 3 }}
-                            onClick={saveProfile}
-                        >
-                            Сохранить
-                        </Button>
-
+                            <Button
+                                fullWidth
+                                variant="contained"
+                                size="large"
+                                disabled={loading}
+                                onClick={saveProfile}
+                            >
+                                {loading ? "Сохраняем..." : "Сохранить изменения"}
+                            </Button>
+                        </Stack>
                     </CardContent>
-
                 </Card>
-
-            </Box>
-
+            </Container>
         </Box>
     );
 }

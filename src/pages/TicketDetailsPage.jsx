@@ -7,19 +7,20 @@ import {
     useParams
 } from "react-router-dom";
 
-import api from "../api/api";
-
-import Navbar
-from "../components/Navbar";
-
 import {
+    Alert,
+    Box,
+    Button,
     Card,
     CardContent,
-    Typography,
+    Container,
+    Stack,
     TextField,
-    Button,
-    Box
+    Typography
 } from "@mui/material";
+
+import api from "../api/api";
+import Navbar from "../components/Navbar";
 
 
 function TicketDetailsPage() {
@@ -32,190 +33,157 @@ function TicketDetailsPage() {
     const [text, setText] =
         useState("");
 
+    const [error, setError] =
+        useState("");
 
     useEffect(() => {
-
         fetchComments();
-
     }, []);
-
 
     const fetchComments = async () => {
 
         try {
 
             const token =
-                localStorage.getItem(
-                    "token"
-                );
+                localStorage.getItem("token");
 
             const response =
                 await api.get(
                     `/tickets/${id}/comments`,
                     {
                         headers: {
-                            Authorization:
-                                `Bearer ${token}`
+                            Authorization: `Bearer ${token}`
                         }
                     }
                 );
 
-            setComments(
-                response.data
-            );
+            setComments(response.data);
 
-        } catch (error) {
-
-            console.error(error);
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить комментарии.");
         }
     };
 
-
     const addComment = async () => {
+
+        if (!text.trim()) {
+            return;
+        }
 
         try {
 
             const token =
-                localStorage.getItem(
-                    "token"
-                );
+                localStorage.getItem("token");
 
             await api.post(
                 `/tickets/${id}/comments`,
                 {
-                    text: text
+                    text
                 },
                 {
                     headers: {
-                        Authorization:
-                            `Bearer ${token}`
+                        Authorization: `Bearer ${token}`
                     }
                 }
             );
 
             setText("");
-
             fetchComments();
 
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                "Failed to add comment"
-            );
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось добавить комментарий.");
         }
     };
 
     return (
 
-        <Box
-            sx={{
-                backgroundColor:
-                    "#f4f6f8",
-                minHeight: "100vh"
-            }}
-        >
-
+        <Box sx={{ minHeight: "100vh" }}>
             <Navbar />
 
-            <Box sx={{ p: 4 }}>
+            <Container
+                maxWidth="md"
+                sx={{ py: 4 }}
+            >
+                <Stack spacing={3}>
+                    <Box>
+                        <Typography variant="h4" gutterBottom>
+                            Заявка #{id}
+                        </Typography>
+                        <Typography color="text.secondary">
+                            Комментарии и переписка по обращению.
+                        </Typography>
+                    </Box>
 
-                <Typography
-                    variant="h4"
-                    fontWeight="bold"
-                    gutterBottom
-                >
-                    Детали заявки
-                </Typography>
+                    {error && (
+                        <Alert severity="error">
+                            {error}
+                        </Alert>
+                    )}
 
-                <Card
-                    sx={{
-                        mb: 3,
-                        borderRadius: 4,
-                        boxShadow: 3
-                    }}
-                >
+                    <Card>
+                        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                            <Stack spacing={2}>
+                                <Typography variant="h6">
+                                    Новый комментарий
+                                </Typography>
 
-                    <CardContent>
+                                <TextField
+                                    fullWidth
+                                    multiline
+                                    minRows={4}
+                                    label="Текст комментария"
+                                    value={text}
+                                    onChange={(e) =>
+                                        setText(e.target.value)
+                                    }
+                                />
 
-                        <Typography
-                            variant="h6"
-                            gutterBottom
-                        >
-                            Добавить комментарий
+                                <Button
+                                    variant="contained"
+                                    onClick={addComment}
+                                    disabled={!text.trim()}
+                                >
+                                    Отправить
+                                </Button>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+
+                    <Stack spacing={2}>
+                        <Typography variant="h5">
+                            Комментарии
                         </Typography>
 
-                        <TextField
-                            fullWidth
-                            multiline
-                            rows={4}
-                            value={text}
-                            onChange={(e) =>
-                                setText(
-                                    e.target.value
-                                )
-                            }
-                            sx={{
-                                backgroundColor:
-                                    "white"
-                            }}
-                        />
+                        {comments.length === 0 && (
+                            <Card>
+                                <CardContent sx={{ py: 4, textAlign: "center" }}>
+                                    <Typography color="text.secondary">
+                                        Комментариев пока нет.
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        )}
 
-                        <br />
-                        <br />
-
-                        <Button
-                            variant="contained"
-                            onClick={
-                                addComment
-                            }
-                        >
-                            Отправить
-                        </Button>
-
-                    </CardContent>
-
-                </Card>
-
-                <Typography
-                    variant="h5"
-                    gutterBottom
-                >
-                    Комментарии
-                </Typography>
-
-                {comments.map((comment) => (
-
-                    <Card
-                        key={comment.id}
-                        sx={{
-                            mb: 2,
-                            borderRadius: 4,
-                            boxShadow: 2
-                        }}
-                    >
-
-                        <CardContent>
-
-                            <Typography
-                                sx={{
-                                    color:
-                                        "#222",
-                                    fontSize:
-                                        "16px"
-                                }}
-                            >
-                                {comment.text}
-                            </Typography>
-
-                        </CardContent>
-
-                    </Card>
-                ))}
-
-            </Box>
-
+                        {comments.map((comment) => (
+                            <Card key={comment.id}>
+                                <CardContent>
+                                    <Typography>
+                                        {comment.text}
+                                    </Typography>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                    >
+                                        Пользователь #{comment.user_id}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Stack>
+                </Stack>
+            </Container>
         </Box>
     );
 }
