@@ -32,6 +32,17 @@ function CreateTicketPage() {
     const [loading, setLoading] =
         useState(false);
 
+    const getApiError = (err) => {
+
+        const detail = err.response?.data?.detail;
+
+        if (typeof detail === "string") {
+            return detail;
+        }
+
+        return "Не удалось создать заявку.";
+    };
+
     const handleSubmit = async (e) => {
 
         e.preventDefault();
@@ -62,7 +73,7 @@ function CreateTicketPage() {
 
         } catch (err) {
             console.error(err);
-            setError("Не удалось создать заявку.");
+            setError(getApiError(err));
         } finally {
             setLoading(false);
         }
