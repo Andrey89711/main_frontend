@@ -13,6 +13,7 @@ import {
     Button,
     Card,
     CardContent,
+    Chip,
     Container,
     Stack,
     TextField,
@@ -23,9 +24,21 @@ import api from "../api/api";
 import Navbar from "../components/Navbar";
 
 
+const statusLabels = {
+    new: "Новая",
+    in_progress: "В работе",
+    completed: "Завершена",
+    closed: "Закрыта",
+    archived: "Архивирована"
+};
+
+
 function TicketDetailsPage() {
 
     const { id } = useParams();
+
+    const [ticket, setTicket] =
+        useState(null);
 
     const [comments, setComments] =
         useState([]);
@@ -37,25 +50,43 @@ function TicketDetailsPage() {
         useState("");
 
     useEffect(() => {
+        fetchTicket();
         fetchComments();
-    }, []);
+    }, [id]);
+
+    const getAuthHeaders = () => ({
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+    });
+
+    const fetchTicket = async () => {
+
+        try {
+
+            const response = await api.get(
+                `/tickets/${id}`,
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setTicket(response.data);
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить заявку.");
+        }
+    };
 
     const fetchComments = async () => {
 
         try {
 
-            const token =
-                localStorage.getItem("token");
-
-            const response =
-                await api.get(
-                    `/tickets/${id}/comments`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
-                    }
-                );
+            const response = await api.get(
+                `/tickets/${id}/comments`,
+                {
+                    headers: getAuthHeaders()
+                }
+            );
 
             setComments(response.data);
 
@@ -73,18 +104,11 @@ function TicketDetailsPage() {
 
         try {
 
-            const token =
-                localStorage.getItem("token");
-
             await api.post(
                 `/tickets/${id}/comments`,
+                { text },
                 {
-                    text
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: getAuthHeaders()
                 }
             );
 
@@ -102,17 +126,14 @@ function TicketDetailsPage() {
         <Box sx={{ minHeight: "100vh" }}>
             <Navbar />
 
-            <Container
-                maxWidth="md"
-                sx={{ py: 4 }}
-            >
+            <Container maxWidth="md" sx={{ py: 4 }}>
                 <Stack spacing={3}>
                     <Box>
                         <Typography variant="h4" gutterBottom>
                             Заявка #{id}
                         </Typography>
                         <Typography color="text.secondary">
-                            Комментарии и переписка по обращению.
+                            Статус, приоритет и переписка по обращению.
                         </Typography>
                     </Box>
 
@@ -120,6 +141,32 @@ function TicketDetailsPage() {
                         <Alert severity="error">
                             {error}
                         </Alert>
+                    )}
+
+                    {ticket && (
+                        <Card>
+                            <CardContent>
+                                <Stack spacing={1.5}>
+                                    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
+                                        <Chip
+                                            label={statusLabels[ticket.status] || ticket.status}
+                                        />
+                                        <Chip
+                                            label={`Приоритет: ${ticket.priority}`}
+                                            variant="outlined"
+                                        />
+                                        <Chip
+                                            label={`Подписчиков: ${ticket.subscribers_count}`}
+                                            color="info"
+                                            variant="outlined"
+                                        />
+                                    </Stack>
+                                    <Typography>
+                                        {ticket.description}
+                                    </Typography>
+                                </Stack>
+                            </CardContent>
+                        </Card>
                     )}
 
                     <Card>
@@ -135,9 +182,7 @@ function TicketDetailsPage() {
                                     minRows={4}
                                     label="Текст комментария"
                                     value={text}
-                                    onChange={(e) =>
-                                        setText(e.target.value)
-                                    }
+                                    onChange={(e) => setText(e.target.value)}
                                 />
 
                                 <Button
@@ -172,10 +217,7 @@ function TicketDetailsPage() {
                                     <Typography>
                                         {comment.text}
                                     </Typography>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                    >
+                                    <Typography variant="caption" color="text.secondary">
                                         Пользователь #{comment.user_id}
                                     </Typography>
                                 </CardContent>

@@ -4,12 +4,20 @@ import {
 } from "react";
 
 import {
+    useNavigate
+} from "react-router-dom";
+
+import {
     Alert,
     Box,
     Button,
     Card,
     CardContent,
     Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     InputLabel,
     MenuItem,
@@ -23,13 +31,34 @@ import api from "../api/api";
 import Navbar from "../components/Navbar";
 
 
+const statusLabels = {
+    new: "Новая",
+    in_progress: "В работе",
+    completed: "Завершена",
+    closed: "Закрыта",
+    archived: "Архивирована"
+};
+
+
 function formatAddress(address) {
 
     return `${address.street}, д. ${address.house}, кв. ${address.apartment}`;
 }
 
 
+function formatDate(value) {
+
+    if (!value) {
+        return "—";
+    }
+
+    return new Date(value).toLocaleString("ru-RU");
+}
+
+
 function CreateTicketPage() {
+
+    const navigate = useNavigate();
 
     const [description, setDescription] =
         useState("");
@@ -47,6 +76,12 @@ function CreateTicketPage() {
         useState("");
 
     const [loading, setLoading] =
+        useState(false);
+
+    const [similarMatches, setSimilarMatches] =
+        useState([]);
+
+    const [similarDialogOpen, setSimilarDialogOpen] =
         useState(false);
 
     useEffect(() => {
@@ -99,7 +134,61 @@ function CreateTicketPage() {
             return detail;
         }
 
-        return "Не удалось создать заявку.";
+        if (detail?.message) {
+            return detail.message;
+        }
+
+        return "Не удалось выполнить операцию.";
+    };
+
+    const buildPayload = (forceCreate = false) => ({
+        description,
+        category_id: 1,
+        address_id: Number(addressId),
+        force_create: forceCreate
+    });
+
+    const checkSimilar = async () => {
+
+        const response = await api.post(
+            "/tickets/check-similar",
+            {
+                description,
+                category_id: 1,
+                address_id: Number(addressId)
+            },
+            {
+                headers: getAuthHeaders()
+            }
+        );
+
+        return response.data;
+    };
+
+    const createTicket = async (forceCreate = false) => {
+
+        const response = await api.post(
+            "/tickets/",
+            buildPayload(forceCreate),
+            {
+                headers: getAuthHeaders()
+            }
+        );
+
+        return response.data;
+    };
+
+    const joinTicket = async (ticketId) => {
+
+        await api.post(
+            `/tickets/${ticketId}/join`,
+            {
+                description
+            },
+            {
+                headers: getAuthHeaders()
+            }
+        );
     };
 
     const handleSubmit = async (e) => {
@@ -117,19 +206,67 @@ function CreateTicketPage() {
 
         try {
 
-            await api.post(
-                "/tickets/",
-                {
-                    description,
-                    category_id: 1,
-                    address_id: Number(addressId)
-                },
-                {
-                    headers: getAuthHeaders()
-                }
-            );
+            const similarResult = await checkSimilar();
 
-            setMessage("Заявка создана. Ее уже можно отслеживать в списке.");
+            if (similarResult.similar_found) {
+                setSimilarMatches(similarResult.matches);
+                setSimilarDialogOpen(true);
+                return;
+            }
+
+            await createTicket(false);
+            setMessage("Заявка создана. Её можно отслеживать в списке.");
+            setDescription("");
+
+        } catch (err) {
+            console.error(err);
+
+            if (err.response?.status === 409) {
+                const matches = err.response?.data?.detail?.matches || [];
+                setSimilarMatches(matches);
+                setSimilarDialogOpen(true);
+                return;
+            }
+
+            setError(getApiError(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleJoin = async (ticketId) => {
+
+        setLoading(true);
+        setError("");
+        setMessage("");
+
+        try {
+
+            await joinTicket(ticketId);
+            setSimilarDialogOpen(false);
+            setMessage("Вы присоединились к существующей заявке.");
+            setDescription("");
+            navigate("/dashboard");
+
+        } catch (err) {
+            console.error(err);
+            setError(getApiError(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleForceCreate = async () => {
+
+        setLoading(true);
+        setError("");
+        setMessage("");
+
+        try {
+
+            await createTicket(true);
+            setSimilarDialogOpen(false);
+            setMessage("Отдельная заявка создана.");
             setDescription("");
 
         } catch (err) {
@@ -160,7 +297,7 @@ function CreateTicketPage() {
                                     Создание заявки
                                 </Typography>
                                 <Typography color="text.secondary">
-                                    Выберите подтвержденный адрес и опишите проблему.
+                                    Система проверит похожие активные обращения по адресу и категории.
                                 </Typography>
                             </Box>
 
@@ -241,13 +378,84 @@ function CreateTicketPage() {
                                     size="large"
                                     disabled={loading || hasNoVerifiedAddresses}
                                 >
-                                    {loading ? "Отправляем..." : "Создать заявку"}
+                                    {loading ? "Проверяем..." : "Отправить обращение"}
                                 </Button>
                             </Stack>
                         </Stack>
                     </CardContent>
                 </Card>
             </Container>
+
+            <Dialog
+                open={similarDialogOpen}
+                onClose={() => setSimilarDialogOpen(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>
+                    Найдены похожие активные заявки
+                </DialogTitle>
+
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <Typography color="text.secondary">
+                            Чтобы не создавать дубликат, вы можете присоединиться к существующей заявке
+                            или продолжить создание отдельного обращения.
+                        </Typography>
+
+                        {similarMatches.map((match) => (
+                            <Card key={match.id} variant="outlined">
+                                <CardContent>
+                                    <Stack spacing={1}>
+                                        <Typography variant="h6">
+                                            Заявка #{match.id}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Статус: {statusLabels[match.status] || match.status}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Создана: {formatDate(match.created_at)}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Подписчиков: {match.subscribers_count}
+                                        </Typography>
+                                        <Typography>
+                                            {match.description}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Схожесть: {Math.round(match.similarity_score * 100)}%
+                                        </Typography>
+                                        <Button
+                                            variant="contained"
+                                            disabled={loading}
+                                            onClick={() => handleJoin(match.id)}
+                                        >
+                                            Присоединиться к этой заявке
+                                        </Button>
+                                    </Stack>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </Stack>
+                </DialogContent>
+
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button
+                        onClick={() => setSimilarDialogOpen(false)}
+                        disabled={loading}
+                    >
+                        Отмена
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="warning"
+                        disabled={loading}
+                        onClick={handleForceCreate}
+                    >
+                        Создать отдельную заявку
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

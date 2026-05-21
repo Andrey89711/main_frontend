@@ -213,6 +213,20 @@ function DashboardPage() {
                                                     label={`Приоритет: ${ticket.priority}`}
                                                     variant="outlined"
                                                 />
+                                                {ticket.subscribers_count > 0 && (
+                                                    <Chip
+                                                        label={`Подписчиков: ${ticket.subscribers_count}`}
+                                                        color="info"
+                                                        variant="outlined"
+                                                    />
+                                                )}
+                                                {ticket.is_linked && !ticket.is_creator && (
+                                                    <Chip
+                                                        label="Присоединённая"
+                                                        color="secondary"
+                                                        variant="outlined"
+                                                    />
+                                                )}
                                             </Stack>
                                         </Stack>
 

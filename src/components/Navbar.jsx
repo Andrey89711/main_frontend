@@ -74,6 +74,10 @@ function Navbar() {
                     }]
                     : []),
                 {
+                    label: "Уведомления",
+                    to: "/notifications"
+                },
+                {
                     label: "Профиль",
                     to: "/profile"
                 }

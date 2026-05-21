@@ -36,6 +36,9 @@ from "./pages/ProfilePage";
 import UsersPage
 from "./pages/UsersPage";
 
+import NotificationsPage
+from "./pages/NotificationsPage";
+
 
 function getRole() {
 
@@ -183,6 +186,17 @@ function App() {
                         <ProtectedRoute>
                             <RoleRoute roles={["resident", "executor", "dispatcher"]}>
                                 <ProfilePage />
+                            </RoleRoute>
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/notifications"
+                    element={
+                        <ProtectedRoute>
+                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                                <NotificationsPage />
                             </RoleRoute>
                         </ProtectedRoute>
                     }

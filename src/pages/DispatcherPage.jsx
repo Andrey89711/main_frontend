@@ -10,7 +10,16 @@ import {
     Card,
     CardContent,
     Chip,
+    Collapse,
     Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
     Stack,
     Typography
 } from "@mui/material";
@@ -22,13 +31,17 @@ import Navbar from "../components/Navbar";
 const statusLabels = {
     new: "Новая",
     in_progress: "В работе",
-    completed: "Завершена"
+    completed: "Завершена",
+    closed: "Закрыта",
+    archived: "Архивирована"
 };
 
 const statusColors = {
     new: "error",
     in_progress: "warning",
-    completed: "success"
+    completed: "success",
+    closed: "default",
+    archived: "default"
 };
 
 
@@ -52,32 +65,40 @@ function DispatcherPage() {
     const [message, setMessage] =
         useState("");
 
+    const [expandedTicketId, setExpandedTicketId] =
+        useState(null);
+
+    const [subscribers, setSubscribers] =
+        useState([]);
+
+    const [mergeDialogOpen, setMergeDialogOpen] =
+        useState(false);
+
+    const [mergePrimaryId, setMergePrimaryId] =
+        useState("");
+
+    const [mergeSecondaryId, setMergeSecondaryId] =
+        useState("");
+
     useEffect(() => {
         fetchTickets();
         fetchPendingAddresses();
     }, []);
 
-    const getAuthHeaders = () => {
-
-        const token =
-            localStorage.getItem("token");
-
-        return {
-            Authorization: `Bearer ${token}`
-        };
-    };
+    const getAuthHeaders = () => ({
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+    });
 
     const fetchTickets = async () => {
 
         try {
 
-            const response =
-                await api.get(
-                    "/tickets/all",
-                    {
-                        headers: getAuthHeaders()
-                    }
-                );
+            const response = await api.get(
+                "/tickets/all",
+                {
+                    headers: getAuthHeaders()
+                }
+            );
 
             setTickets(response.data);
 
@@ -91,13 +112,12 @@ function DispatcherPage() {
 
         try {
 
-            const response =
-                await api.get(
-                    "/addresses/pending",
-                    {
-                        headers: getAuthHeaders()
-                    }
-                );
+            const response = await api.get(
+                "/addresses/pending",
+                {
+                    headers: getAuthHeaders()
+                }
+            );
 
             setPendingAddresses(response.data);
 
@@ -130,10 +150,7 @@ function DispatcherPage() {
         }
     };
 
-    const updateStatus = async (
-        ticketId,
-        newStatus
-    ) => {
+    const updateStatus = async (ticketId, newStatus) => {
 
         try {
 
@@ -153,24 +170,120 @@ function DispatcherPage() {
         }
     };
 
+    const fetchSubscribers = async (ticketId) => {
+
+        const response = await api.get(
+            `/tickets/${ticketId}/subscribers`,
+            {
+                headers: getAuthHeaders()
+            }
+        );
+
+        setSubscribers(response.data);
+    };
+
+    const toggleSubscribers = async (ticketId) => {
+
+        if (expandedTicketId === ticketId) {
+            setExpandedTicketId(null);
+            return;
+        }
+
+        try {
+
+            await fetchSubscribers(ticketId);
+            setExpandedTicketId(ticketId);
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить подписчиков.");
+        }
+    };
+
+    const unlinkSubscriber = async (ticketId, linkId) => {
+
+        try {
+
+            await api.delete(
+                `/tickets/${ticketId}/subscribers/${linkId}`,
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setMessage("Подписчик отвязан.");
+            await fetchSubscribers(ticketId);
+            fetchTickets();
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось отвязать подписчика.");
+        }
+    };
+
+    const mergeTickets = async () => {
+
+        setError("");
+        setMessage("");
+
+        try {
+
+            await api.post(
+                "/tickets/merge",
+                {
+                    primary_ticket_id: Number(mergePrimaryId),
+                    secondary_ticket_id: Number(mergeSecondaryId)
+                },
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setMergeDialogOpen(false);
+            setMergePrimaryId("");
+            setMergeSecondaryId("");
+            setMessage("Заявки объединены.");
+            fetchTickets();
+
+        } catch (err) {
+            console.error(err);
+            const detail = err.response?.data?.detail;
+            setError(
+                typeof detail === "string"
+                    ? detail
+                    : "Не удалось объединить заявки."
+            );
+        }
+    };
+
     return (
 
         <Box sx={{ minHeight: "100vh" }}>
             <Navbar />
 
-            <Container
-                maxWidth="lg"
-                sx={{ py: 4 }}
-            >
+            <Container maxWidth="lg" sx={{ py: 4 }}>
                 <Stack spacing={3}>
-                    <Box>
-                        <Typography variant="h4" gutterBottom>
-                            Панель диспетчера
-                        </Typography>
-                        <Typography color="text.secondary">
-                            Обрабатывайте заявки и подтверждайте адреса жильцов.
-                        </Typography>
-                    </Box>
+                    <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        justifyContent="space-between"
+                        spacing={2}
+                    >
+                        <Box>
+                            <Typography variant="h4" gutterBottom>
+                                Панель диспетчера
+                            </Typography>
+                            <Typography color="text.secondary">
+                                Обрабатывайте заявки, подписчиков и объединение обращений.
+                            </Typography>
+                        </Box>
+
+                        <Button
+                            variant="outlined"
+                            onClick={() => setMergeDialogOpen(true)}
+                        >
+                            Объединить заявки
+                        </Button>
+                    </Stack>
 
                     {message && (
                         <Alert severity="success">
@@ -219,9 +332,7 @@ function DispatcherPage() {
 
                                                 <Button
                                                     variant="contained"
-                                                    onClick={() =>
-                                                        verifyAddress(address.id)
-                                                    }
+                                                    onClick={() => verifyAddress(address.id)}
                                                 >
                                                     Подтвердить
                                                 </Button>
@@ -240,9 +351,6 @@ function DispatcherPage() {
                                     <Typography variant="h6" gutterBottom>
                                         Активных заявок нет
                                     </Typography>
-                                    <Typography color="text.secondary">
-                                        Новые обращения появятся в этом списке.
-                                    </Typography>
                                 </CardContent>
                             </Card>
                         )}
@@ -250,71 +358,124 @@ function DispatcherPage() {
                         {tickets.map((ticket) => (
                             <Card key={ticket.id}>
                                 <CardContent>
-                                    <Stack
-                                        direction={{ xs: "column", md: "row" }}
-                                        spacing={2}
-                                        justifyContent="space-between"
-                                    >
-                                        <Stack spacing={1.5}>
-                                            <Stack
-                                                direction="row"
-                                                spacing={1}
-                                                alignItems="center"
-                                                sx={{ flexWrap: "wrap", rowGap: 1 }}
-                                            >
-                                                <Typography variant="h6">
-                                                    Заявка #{ticket.id}
+                                    <Stack spacing={2}>
+                                        <Stack
+                                            direction={{ xs: "column", md: "row" }}
+                                            spacing={2}
+                                            justifyContent="space-between"
+                                        >
+                                            <Stack spacing={1.5}>
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={1}
+                                                    alignItems="center"
+                                                    sx={{ flexWrap: "wrap", rowGap: 1 }}
+                                                >
+                                                    <Typography variant="h6">
+                                                        Заявка #{ticket.id}
+                                                    </Typography>
+                                                    <Chip
+                                                        label={statusLabels[ticket.status] || ticket.status}
+                                                        color={statusColors[ticket.status] || "default"}
+                                                    />
+                                                    <Chip
+                                                        label={`Приоритет: ${ticket.priority}`}
+                                                        variant="outlined"
+                                                    />
+                                                    <Chip
+                                                        label={`Подписчиков: ${ticket.subscribers_count || 0}`}
+                                                        color="info"
+                                                        variant="outlined"
+                                                    />
+                                                </Stack>
+
+                                                <Typography color="text.secondary">
+                                                    {ticket.description}
                                                 </Typography>
-                                                <Chip
-                                                    label={statusLabels[ticket.status] || ticket.status}
-                                                    color={statusColors[ticket.status] || "default"}
-                                                />
+
+                                                <Typography variant="body2">
+                                                    Адрес:{" "}
+                                                    {ticket.address
+                                                        ? formatAddress(ticket.address)
+                                                        : "не указан"}
+                                                </Typography>
                                             </Stack>
 
-                                            <Typography color="text.secondary">
-                                                {ticket.description}
-                                            </Typography>
+                                            <Stack
+                                                direction={{ xs: "column", sm: "row" }}
+                                                spacing={1}
+                                            >
+                                                <Button
+                                                    variant="outlined"
+                                                    disabled={ticket.status === "in_progress"}
+                                                    onClick={() => updateStatus(ticket.id, "in_progress")}
+                                                >
+                                                    В работу
+                                                </Button>
 
-                                            <Typography variant="body2">
-                                                Адрес:{" "}
-                                                {ticket.address
-                                                    ? formatAddress(ticket.address)
-                                                    : "не указан"}
-                                            </Typography>
+                                                <Button
+                                                    variant="contained"
+                                                    color="success"
+                                                    disabled={ticket.status === "completed"}
+                                                    onClick={() => updateStatus(ticket.id, "completed")}
+                                                >
+                                                    Завершить
+                                                </Button>
+
+                                                <Button
+                                                    variant="text"
+                                                    onClick={() => toggleSubscribers(ticket.id)}
+                                                >
+                                                    Подписчики
+                                                </Button>
+                                            </Stack>
                                         </Stack>
 
-                                        <Stack
-                                            direction={{ xs: "column", sm: "row" }}
-                                            spacing={1}
-                                            alignItems={{ xs: "stretch", sm: "center" }}
-                                        >
-                                            <Button
-                                                variant="outlined"
-                                                disabled={ticket.status === "in_progress"}
-                                                onClick={() =>
-                                                    updateStatus(
-                                                        ticket.id,
-                                                        "in_progress"
-                                                    )
-                                                }
-                                            >
-                                                В работу
-                                            </Button>
+                                        <Collapse in={expandedTicketId === ticket.id}>
+                                            <Stack spacing={1}>
+                                                {subscribers.map((subscriber) => (
+                                                    <Card key={subscriber.id} variant="outlined">
+                                                        <CardContent>
+                                                            <Stack
+                                                                direction={{ xs: "column", sm: "row" }}
+                                                                justifyContent="space-between"
+                                                                spacing={1}
+                                                            >
+                                                                <Box>
+                                                                    <Typography>
+                                                                        {subscriber.full_name}
+                                                                        {subscriber.is_creator && " (создатель)"}
+                                                                    </Typography>
+                                                                    {subscriber.email && (
+                                                                        <Typography variant="body2" color="text.secondary">
+                                                                            {subscriber.email}
+                                                                        </Typography>
+                                                                    )}
+                                                                    <Typography variant="caption" color="text.secondary">
+                                                                        Присоединился: {new Date(subscriber.joined_at).toLocaleString("ru-RU")}
+                                                                    </Typography>
+                                                                </Box>
 
-                                            <Button
-                                                variant="contained"
-                                                color="success"
-                                                disabled={ticket.status === "completed"}
-                                                onClick={() =>
-                                                    updateStatus(
-                                                        ticket.id,
-                                                        "completed"
-                                                    )
-                                                }
-                                            >
-                                                Завершить
-                                            </Button>
-                                        </Stack>
+                                                                {!subscriber.is_creator && (
+                                                                    <Button
+                                                                        color="warning"
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            unlinkSubscriber(
+                                                                                ticket.id,
+                                                                                subscriber.id
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Отвязать
+                                                                    </Button>
+                                                                )}
+                                                            </Stack>
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </Stack>
+                                        </Collapse>
                                     </Stack>
                                 </CardContent>
                             </Card>
@@ -322,6 +483,67 @@ function DispatcherPage() {
                     </Stack>
                 </Stack>
             </Container>
+
+            <Dialog
+                open={mergeDialogOpen}
+                onClose={() => setMergeDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    Объединение заявок
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <Typography color="text.secondary">
+                            Основная заявка сохранится, вторая будет архивирована.
+                            Категории должны совпадать.
+                        </Typography>
+
+                        <FormControl fullWidth>
+                            <InputLabel>Основная заявка</InputLabel>
+                            <Select
+                                label="Основная заявка"
+                                value={mergePrimaryId}
+                                onChange={(e) => setMergePrimaryId(e.target.value)}
+                            >
+                                {tickets.map((ticket) => (
+                                    <MenuItem key={ticket.id} value={ticket.id}>
+                                        #{ticket.id} — {ticket.description.slice(0, 40)}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth>
+                            <InputLabel>Вторичная заявка</InputLabel>
+                            <Select
+                                label="Вторичная заявка"
+                                value={mergeSecondaryId}
+                                onChange={(e) => setMergeSecondaryId(e.target.value)}
+                            >
+                                {tickets.map((ticket) => (
+                                    <MenuItem key={ticket.id} value={ticket.id}>
+                                        #{ticket.id} — {ticket.description.slice(0, 40)}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setMergeDialogOpen(false)}>
+                        Отмена
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={!mergePrimaryId || !mergeSecondaryId}
+                        onClick={mergeTickets}
+                    >
+                        Объединить
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }
