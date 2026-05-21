@@ -5,10 +5,6 @@ import {
     Navigate
 } from "react-router-dom";
 
-import {
-    jwtDecode
-} from "jwt-decode";
-
 import LoginPage
 from "./pages/LoginPage";
 
@@ -39,37 +35,11 @@ from "./pages/UsersPage";
 import NotificationsPage
 from "./pages/NotificationsPage";
 
-
-function getRole() {
-
-    const token =
-        localStorage.getItem("token");
-
-    if (!token) {
-        return null;
-    }
-
-    try {
-        return jwtDecode(token).role;
-    } catch (error) {
-        console.error(error);
-        return null;
-    }
-}
-
-
-function getHomePath(role) {
-
-    if (role === "admin") {
-        return "/users";
-    }
-
-    if (role === "dispatcher") {
-        return "/dispatcher";
-    }
-
-    return "/dashboard";
-}
+import {
+    getHomePath,
+    getRole,
+    isAuthenticated
+} from "./auth/auth";
 
 
 function RoleRoute({
@@ -80,24 +50,33 @@ function RoleRoute({
     const role = getRole();
 
     if (!role) {
-        return <Navigate to="/" />;
+        return <Navigate to="/" replace />;
     }
 
     if (!roles.includes(role)) {
-        return <Navigate to={getHomePath(role)} />;
+        return <Navigate to={getHomePath(role)} replace />;
     }
 
     return children;
 }
 
 
+function HomeRedirect() {
+
+    if (!isAuthenticated()) {
+        return <LoginPage />;
+    }
+
+    return (
+        <Navigate
+            to={getHomePath(getRole())}
+            replace
+        />
+    );
+}
+
+
 function App() {
-
-    const token =
-        localStorage.getItem("token");
-
-    const role =
-        getRole();
 
     return (
 
@@ -107,24 +86,14 @@ function App() {
 
                 <Route
                     path="/"
-                    element={
-                        token
-                            ? (
-                                <Navigate
-                                    to={getHomePath(role)}
-                                />
-                            )
-                            : (
-                                <LoginPage />
-                            )
-                    }
+                    element={<HomeRedirect />}
                 />
 
                 <Route
                     path="/dashboard"
                     element={
                         <ProtectedRoute>
-                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                            <RoleRoute roles={["resident"]}>
                                 <DashboardPage />
                             </RoleRoute>
                         </ProtectedRoute>
@@ -135,7 +104,7 @@ function App() {
                     path="/create-ticket"
                     element={
                         <ProtectedRoute>
-                            <RoleRoute roles={["resident", "executor"]}>
+                            <RoleRoute roles={["resident"]}>
                                 <CreateTicketPage />
                             </RoleRoute>
                         </ProtectedRoute>
@@ -168,7 +137,7 @@ function App() {
                     path="/tickets/:id"
                     element={
                         <ProtectedRoute>
-                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                            <RoleRoute roles={["resident", "dispatcher"]}>
                                 <TicketDetailsPage />
                             </RoleRoute>
                         </ProtectedRoute>
@@ -184,7 +153,7 @@ function App() {
                     path="/profile"
                     element={
                         <ProtectedRoute>
-                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                            <RoleRoute roles={["resident", "executor", "dispatcher", "admin"]}>
                                 <ProfilePage />
                             </RoleRoute>
                         </ProtectedRoute>
@@ -195,10 +164,20 @@ function App() {
                     path="/notifications"
                     element={
                         <ProtectedRoute>
-                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                            <RoleRoute roles={["resident", "executor", "dispatcher", "admin"]}>
                                 <NotificationsPage />
                             </RoleRoute>
                         </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="*"
+                    element={
+                        <Navigate
+                            to="/"
+                            replace
+                        />
                     }
                 />
 

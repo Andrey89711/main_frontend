@@ -5,8 +5,9 @@ import {
 } from "react-router-dom";
 
 import {
-    jwtDecode
-} from "jwt-decode";
+    clearAuth,
+    getRole
+} from "../auth/auth";
 
 import {
     AppBar,
@@ -33,60 +34,69 @@ function Navbar() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const token =
-        localStorage.getItem("token");
-
-    let role = null;
-
-    try {
-
-        if (token) {
-            role = jwtDecode(token).role;
-        }
-
-    } catch (error) {
-        console.error(error);
-    }
+    const role = getRole();
 
     const navItems =
         role === "admin"
             ? [
                 {
-                    label: "Пользователи",
+                    label: "Администрирование",
                     to: "/users"
-                }
-            ]
-            : [
-                {
-                    label: "Главная",
-                    to: "/dashboard"
-                },
-                ...(role !== "dispatcher"
-                    ? [{
-                        label: "Создать заявку",
-                        to: "/create-ticket"
-                    }]
-                    : []),
-                ...(role === "dispatcher"
-                    ? [{
-                        label: "Диспетчер",
-                        to: "/dispatcher"
-                    }]
-                    : []),
-                {
-                    label: "Уведомления",
-                    to: "/notifications"
                 },
                 {
                     label: "Профиль",
                     to: "/profile"
                 }
-            ];
+            ]
+            : role === "dispatcher"
+                ? [
+                    {
+                        label: "Диспетчер",
+                        to: "/dispatcher"
+                    },
+                    {
+                        label: "Уведомления",
+                        to: "/notifications"
+                    },
+                    {
+                        label: "Профиль",
+                        to: "/profile"
+                    }
+                ]
+                : role === "executor"
+                    ? [
+                        {
+                            label: "Уведомления",
+                            to: "/notifications"
+                        },
+                        {
+                            label: "Профиль",
+                            to: "/profile"
+                        }
+                    ]
+                    : [
+                        {
+                            label: "Главная",
+                            to: "/dashboard"
+                        },
+                        {
+                            label: "Создать заявку",
+                            to: "/create-ticket"
+                        },
+                        {
+                            label: "Уведомления",
+                            to: "/notifications"
+                        },
+                        {
+                            label: "Профиль",
+                            to: "/profile"
+                        }
+                    ];
 
     const handleLogout = () => {
 
-        localStorage.removeItem("token");
-        navigate("/");
+        clearAuth();
+        navigate("/", { replace: true });
     };
 
     return (

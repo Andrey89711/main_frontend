@@ -26,13 +26,21 @@ import Navbar from "../components/Navbar";
 const statusLabels = {
     new: "Новая",
     in_progress: "В работе",
-    completed: "Завершена"
+    completed: "Выполнена",
+    closed: "Закрыта",
+    auto_closed: "Закрыта автоматически",
+    dispute_review: "На повторной проверке",
+    archived: "Архивирована"
 };
 
 const statusColors = {
     new: "error",
     in_progress: "warning",
-    completed: "success"
+    completed: "success",
+    closed: "default",
+    auto_closed: "default",
+    dispute_review: "warning",
+    archived: "default"
 };
 
 

@@ -15,6 +15,11 @@ import {
 
 import api from "../api/api";
 
+import {
+    getHomePath,
+    setToken
+} from "../auth/auth";
+
 
 function LoginPage() {
 
@@ -43,12 +48,14 @@ function LoginPage() {
                 formData
             );
 
-            localStorage.setItem(
-                "token",
-                response.data.access_token
-            );
+            setToken(response.data.access_token);
 
-            navigate("/dashboard");
+            const role = response.data.role || "resident";
+
+            navigate(
+                getHomePath(role),
+                { replace: true }
+            );
 
         } catch (err) {
             console.error(err);

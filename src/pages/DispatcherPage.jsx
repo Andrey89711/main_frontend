@@ -4,6 +4,10 @@ import {
 } from "react";
 
 import {
+    Link
+} from "react-router-dom";
+
+import {
     Alert,
     Box,
     Button,
@@ -21,6 +25,7 @@ import {
     MenuItem,
     Select,
     Stack,
+    TextField,
     Typography
 } from "@mui/material";
 
@@ -31,8 +36,10 @@ import Navbar from "../components/Navbar";
 const statusLabels = {
     new: "Новая",
     in_progress: "В работе",
-    completed: "Завершена",
+    completed: "Выполнена",
     closed: "Закрыта",
+    auto_closed: "Закрыта автоматически",
+    dispute_review: "На повторной проверке",
     archived: "Архивирована"
 };
 
@@ -41,6 +48,8 @@ const statusColors = {
     in_progress: "warning",
     completed: "success",
     closed: "default",
+    auto_closed: "default",
+    dispute_review: "warning",
     archived: "default"
 };
 
@@ -80,9 +89,25 @@ function DispatcherPage() {
     const [mergeSecondaryId, setMergeSecondaryId] =
         useState("");
 
+    const [disputedTickets, setDisputedTickets] =
+        useState([]);
+
+    const [resolveDialogOpen, setResolveDialogOpen] =
+        useState(false);
+
+    const [resolveTicketId, setResolveTicketId] =
+        useState(null);
+
+    const [resolveComment, setResolveComment] =
+        useState("");
+
+    const [resolveStatus, setResolveStatus] =
+        useState("in_progress");
+
     useEffect(() => {
         fetchTickets();
         fetchPendingAddresses();
+        fetchDisputedTickets();
     }, []);
 
     const getAuthHeaders = () => ({
@@ -105,6 +130,59 @@ function DispatcherPage() {
         } catch (err) {
             console.error(err);
             setError("Не удалось загрузить заявки. Проверьте права диспетчера.");
+        }
+    };
+
+    const fetchDisputedTickets = async () => {
+
+        try {
+
+            const response = await api.get(
+                "/tickets/disputed",
+                { headers: getAuthHeaders() }
+            );
+
+            setDisputedTickets(response.data);
+
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const openResolveDialog = (ticketId) => {
+
+        setResolveTicketId(ticketId);
+        setResolveComment("");
+        setResolveStatus("in_progress");
+        setResolveDialogOpen(true);
+    };
+
+    const resolveDispute = async () => {
+
+        if (!resolveComment.trim()) {
+            setError("Укажите комментарий к решению.");
+            return;
+        }
+
+        try {
+
+            await api.patch(
+                `/tickets/${resolveTicketId}/dispute/resolve`,
+                {
+                    resolution_comment: resolveComment,
+                    new_status: resolveStatus
+                },
+                { headers: getAuthHeaders() }
+            );
+
+            setResolveDialogOpen(false);
+            setMessage("Оспаривание обработано.");
+            fetchTickets();
+            fetchDisputedTickets();
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось закрыть оспаривание.");
         }
     };
 
@@ -295,6 +373,57 @@ function DispatcherPage() {
                         <Alert severity="error">
                             {error}
                         </Alert>
+                    )}
+
+                    {disputedTickets.length > 0 && (
+                        <Card sx={{ borderColor: "warning.main", borderWidth: 1, borderStyle: "solid" }}>
+                            <CardContent>
+                                <Stack spacing={2}>
+                                    <Typography variant="h5" color="warning.main">
+                                        Проблемные обращения (оспаривания)
+                                    </Typography>
+
+                                    {disputedTickets.map((ticket) => (
+                                        <Card key={ticket.id} variant="outlined">
+                                            <CardContent>
+                                                <Stack
+                                                    direction={{ xs: "column", md: "row" }}
+                                                    spacing={2}
+                                                    justifyContent="space-between"
+                                                >
+                                                    <Box>
+                                                        <Typography variant="h6">
+                                                            Заявка #{ticket.id}
+                                                        </Typography>
+                                                        <Typography color="text.secondary">
+                                                            {ticket.description}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Stack direction="row" spacing={1}>
+                                                        <Button
+                                                            component={Link}
+                                                            to={`/tickets/${ticket.id}`}
+                                                            variant="outlined"
+                                                        >
+                                                            Открыть
+                                                        </Button>
+                                                        <Button
+                                                            variant="contained"
+                                                            color="warning"
+                                                            onClick={() =>
+                                                                openResolveDialog(ticket.id)
+                                                            }
+                                                        >
+                                                            Обработать
+                                                        </Button>
+                                                    </Stack>
+                                                </Stack>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </Stack>
+                            </CardContent>
+                        </Card>
                     )}
 
                     <Card>
@@ -489,6 +618,49 @@ function DispatcherPage() {
                     </Stack>
                 </Stack>
             </Container>
+
+            <Dialog
+                open={resolveDialogOpen}
+                onClose={() => setResolveDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    Обработка оспаривания #{resolveTicketId}
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 1 }}>
+                        <FormControl fullWidth>
+                            <InputLabel>Новый статус заявки</InputLabel>
+                            <Select
+                                label="Новый статус заявки"
+                                value={resolveStatus}
+                                onChange={(e) => setResolveStatus(e.target.value)}
+                            >
+                                <MenuItem value="in_progress">В работу (повторное выполнение)</MenuItem>
+                                <MenuItem value="completed">Выполнена</MenuItem>
+                                <MenuItem value="closed">Закрыта</MenuItem>
+                            </Select>
+                        </FormControl>
+                        <TextField
+                            fullWidth
+                            multiline
+                            minRows={3}
+                            label="Комментарий диспетчера"
+                            value={resolveComment}
+                            onChange={(e) => setResolveComment(e.target.value)}
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setResolveDialogOpen(false)}>
+                        Отмена
+                    </Button>
+                    <Button variant="contained" onClick={resolveDispute}>
+                        Сохранить
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Dialog
                 open={mergeDialogOpen}

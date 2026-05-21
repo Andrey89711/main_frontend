@@ -1,17 +1,17 @@
-import { Navigate }
-from "react-router-dom";
+import {
+    Navigate
+} from "react-router-dom";
+
+import {
+    isAuthenticated
+} from "../auth/auth";
 
 
 function ProtectedRoute({ children }) {
 
-    const token =
-        localStorage.getItem(
-            "token"
-        );
+    if (!isAuthenticated()) {
 
-    if (!token) {
-
-        return <Navigate to="/" />;
+        return <Navigate to="/" replace />;
     }
 
     return children;

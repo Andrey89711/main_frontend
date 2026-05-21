@@ -98,6 +98,9 @@ function ProfilePage() {
     const [loading, setLoading] =
         useState(false);
 
+    const [hasAddresses, setHasAddresses] =
+        useState(true);
+
     const activeField = useMemo(
         () => profileFields.find((field) =>
             field.key === activeFieldKey
@@ -107,8 +110,15 @@ function ProfilePage() {
 
     useEffect(() => {
         loadProfile();
-        loadAddresses();
     }, []);
+
+    useEffect(() => {
+
+        if (hasAddresses) {
+            loadAddresses();
+        }
+
+    }, [hasAddresses]);
 
     useEffect(() => {
 
@@ -146,6 +156,10 @@ function ProfilePage() {
                 phone: res.data.phone || "",
                 password: ""
             });
+
+            setHasAddresses(
+                res.data.has_addresses !== false
+            );
 
         } catch (err) {
             console.error(err);
@@ -365,7 +379,9 @@ function ProfilePage() {
                             Личный кабинет
                         </Typography>
                         <Typography color="text.secondary">
-                            Управляйте контактами и адресами недвижимости.
+                            {hasAddresses
+                                ? "Управляйте контактами и адресами недвижимости."
+                                : "Управляйте контактными данными учётной записи."}
                         </Typography>
                     </Box>
 
@@ -511,6 +527,7 @@ function ProfilePage() {
                         </Card>
                     </Box>
 
+                    {hasAddresses && (
                     <Card>
                         <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
                             <Stack spacing={3}>
@@ -654,6 +671,7 @@ function ProfilePage() {
                             </Stack>
                         </CardContent>
                     </Card>
+                    )}
                 </Stack>
             </Container>
         </Box>
