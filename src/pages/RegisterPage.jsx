@@ -37,8 +37,11 @@ function RegisterPage() {
             apartment: ""
         });
 
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [error, setError] =
+        useState("");
+
+    const [loading, setLoading] =
+        useState(false);
 
     const handleChange = (e) => {
 
@@ -48,10 +51,40 @@ function RegisterPage() {
         });
     };
 
+    const getApiError = (err) => {
+
+        const detail = err.response?.data?.detail;
+
+        if (Array.isArray(detail)) {
+
+            const passwordError = detail.find((item) =>
+                item.loc?.includes("password")
+            );
+
+            if (passwordError) {
+                return "Пароль должен содержать минимум 5 символов.";
+            }
+
+            return "Проверьте корректность заполненных полей.";
+        }
+
+        if (detail === "Email already exists") {
+            return "Пользователь с таким email уже существует.";
+        }
+
+        return "Не удалось зарегистрироваться. Проверьте данные.";
+    };
+
     const handleRegister = async (e) => {
 
         e.preventDefault();
         setError("");
+
+        if (formData.password.length < 5) {
+            setError("Пароль должен содержать минимум 5 символов.");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -68,7 +101,7 @@ function RegisterPage() {
 
         } catch (err) {
             console.error(err);
-            setError("Не удалось зарегистрироваться. Проверьте данные.");
+            setError(getApiError(err));
         } finally {
             setLoading(false);
         }
@@ -131,6 +164,7 @@ function RegisterPage() {
                                         label="Телефон"
                                         name="phone"
                                         value={formData.phone}
+                                        required
                                         fullWidth
                                         onChange={handleChange}
                                     />
@@ -152,6 +186,7 @@ function RegisterPage() {
                                         value={formData.password}
                                         required
                                         fullWidth
+                                        helperText="Минимум 5 символов"
                                         onChange={handleChange}
                                     />
 
@@ -159,6 +194,7 @@ function RegisterPage() {
                                         label="Улица"
                                         name="street"
                                         value={formData.street}
+                                        required
                                         fullWidth
                                         onChange={handleChange}
                                     />
@@ -174,6 +210,7 @@ function RegisterPage() {
                                             label="Дом"
                                             name="house"
                                             value={formData.house}
+                                            required
                                             fullWidth
                                             onChange={handleChange}
                                         />
@@ -182,6 +219,7 @@ function RegisterPage() {
                                             label="Квартира"
                                             name="apartment"
                                             value={formData.apartment}
+                                            required
                                             fullWidth
                                             onChange={handleChange}
                                         />
