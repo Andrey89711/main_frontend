@@ -5,6 +5,10 @@ import {
     Navigate
 } from "react-router-dom";
 
+import {
+    jwtDecode
+} from "jwt-decode";
+
 import LoginPage
 from "./pages/LoginPage";
 
@@ -26,16 +30,71 @@ from "./pages/TicketDetailsPage";
 import RegisterPage
 from "./pages/RegisterPage";
 
-import ProfilePage 
+import ProfilePage
 from "./pages/ProfilePage";
+
+import UsersPage
+from "./pages/UsersPage";
+
+
+function getRole() {
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!token) {
+        return null;
+    }
+
+    try {
+        return jwtDecode(token).role;
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+
+function getHomePath(role) {
+
+    if (role === "admin") {
+        return "/users";
+    }
+
+    if (role === "dispatcher") {
+        return "/dispatcher";
+    }
+
+    return "/dashboard";
+}
+
+
+function RoleRoute({
+    children,
+    roles
+}) {
+
+    const role = getRole();
+
+    if (!role) {
+        return <Navigate to="/" />;
+    }
+
+    if (!roles.includes(role)) {
+        return <Navigate to={getHomePath(role)} />;
+    }
+
+    return children;
+}
 
 
 function App() {
 
     const token =
-        localStorage.getItem(
-            "token"
-        );
+        localStorage.getItem("token");
+
+    const role =
+        getRole();
 
     return (
 
@@ -49,7 +108,7 @@ function App() {
                         token
                             ? (
                                 <Navigate
-                                    to="/dashboard"
+                                    to={getHomePath(role)}
                                 />
                             )
                             : (
@@ -62,9 +121,9 @@ function App() {
                     path="/dashboard"
                     element={
                         <ProtectedRoute>
-
-                            <DashboardPage />
-
+                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                                <DashboardPage />
+                            </RoleRoute>
                         </ProtectedRoute>
                     }
                 />
@@ -73,9 +132,9 @@ function App() {
                     path="/create-ticket"
                     element={
                         <ProtectedRoute>
-
-                            <CreateTicketPage />
-
+                            <RoleRoute roles={["resident", "executor"]}>
+                                <CreateTicketPage />
+                            </RoleRoute>
                         </ProtectedRoute>
                     }
                 />
@@ -84,36 +143,47 @@ function App() {
                     path="/dispatcher"
                     element={
                         <ProtectedRoute>
-
-                            <DispatcherPage />
-
+                            <RoleRoute roles={["dispatcher"]}>
+                                <DispatcherPage />
+                            </RoleRoute>
                         </ProtectedRoute>
                     }
                 />
-				
-				<Route
-					path="/tickets/:id"
-					element={
-						<ProtectedRoute>
 
-							<TicketDetailsPage />
+                <Route
+                    path="/users"
+                    element={
+                        <ProtectedRoute>
+                            <RoleRoute roles={["admin"]}>
+                                <UsersPage />
+                            </RoleRoute>
+                        </ProtectedRoute>
+                    }
+                />
 
-						</ProtectedRoute>
-					}
-				/>
-				
-				<Route
-					path="/register"
-					element={<RegisterPage />}
-				/>
-				
-				<Route
+                <Route
+                    path="/tickets/:id"
+                    element={
+                        <ProtectedRoute>
+                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                                <TicketDetailsPage />
+                            </RoleRoute>
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/register"
+                    element={<RegisterPage />}
+                />
+
+                <Route
                     path="/profile"
                     element={
                         <ProtectedRoute>
-
-                            <ProfilePage />
-
+                            <RoleRoute roles={["resident", "executor", "dispatcher"]}>
+                                <ProfilePage />
+                            </RoleRoute>
                         </ProtectedRoute>
                     }
                 />

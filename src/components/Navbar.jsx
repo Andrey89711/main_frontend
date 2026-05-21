@@ -48,26 +48,36 @@ function Navbar() {
         console.error(error);
     }
 
-    const navItems = [
-        {
-            label: "Главная",
-            to: "/dashboard"
-        },
-        {
-            label: "Создать заявку",
-            to: "/create-ticket"
-        },
-        ...(role === "dispatcher"
-            ? [{
-                label: "Диспетчер",
-                to: "/dispatcher"
-            }]
-            : []),
-        {
-            label: "Профиль",
-            to: "/profile"
-        }
-    ];
+    const navItems =
+        role === "admin"
+            ? [
+                {
+                    label: "Пользователи",
+                    to: "/users"
+                }
+            ]
+            : [
+                {
+                    label: "Главная",
+                    to: "/dashboard"
+                },
+                ...(role !== "dispatcher"
+                    ? [{
+                        label: "Создать заявку",
+                        to: "/create-ticket"
+                    }]
+                    : []),
+                ...(role === "dispatcher"
+                    ? [{
+                        label: "Диспетчер",
+                        to: "/dispatcher"
+                    }]
+                    : []),
+                {
+                    label: "Профиль",
+                    to: "/profile"
+                }
+            ];
 
     const handleLogout = () => {
 
@@ -116,8 +126,16 @@ function Navbar() {
                                 <Chip
                                     size="small"
                                     label={roleLabels[role] || role}
-                                    color={role === "dispatcher" ? "primary" : "default"}
-                                    variant={role === "dispatcher" ? "filled" : "outlined"}
+                                    color={
+                                        ["admin", "dispatcher"].includes(role)
+                                            ? "primary"
+                                            : "default"
+                                    }
+                                    variant={
+                                        ["admin", "dispatcher"].includes(role)
+                                            ? "filled"
+                                            : "outlined"
+                                    }
                                 />
                             )}
                         </Stack>
@@ -126,7 +144,7 @@ function Navbar() {
                             variant="caption"
                             color="text.secondary"
                         >
-                            Заявки жильцов и диспетчерская
+                            Заявки жильцов и управление ТСЖ
                         </Typography>
                     </Box>
 
