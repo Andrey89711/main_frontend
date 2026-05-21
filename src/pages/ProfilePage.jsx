@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useMemo,
     useState
 } from "react";
 
@@ -8,7 +9,9 @@ import {
     Box,
     Button,
     Card,
+    CardActionArea,
     CardContent,
+    Chip,
     Container,
     Stack,
     TextField,
@@ -19,9 +22,56 @@ import api from "../api/api";
 import Navbar from "../components/Navbar";
 
 
+const profileFields = [
+    {
+        key: "full_name",
+        label: "ФИО",
+        type: "text",
+        helperText: "Как вас будут видеть в системе"
+    },
+    {
+        key: "email",
+        label: "Email",
+        type: "email",
+        helperText: "Используется для входа"
+    },
+    {
+        key: "phone",
+        label: "Телефон",
+        type: "tel",
+        helperText: "Контактный номер для связи"
+    },
+    {
+        key: "street",
+        label: "Улица",
+        type: "text",
+        helperText: "Адрес проживания"
+    },
+    {
+        key: "house",
+        label: "Дом",
+        type: "text",
+        helperText: "Номер дома или корпуса"
+    },
+    {
+        key: "apartment",
+        label: "Квартира",
+        type: "text",
+        helperText: "Номер квартиры"
+    },
+    {
+        key: "password",
+        label: "Пароль",
+        type: "password",
+        helperText: "Оставьте пустым, если не хотите менять пароль",
+        preview: "Не отображается"
+    }
+];
+
+
 function ProfilePage() {
 
-    const [form, setForm] =
+    const [profile, setProfile] =
         useState({
             full_name: "",
             email: "",
@@ -32,6 +82,12 @@ function ProfilePage() {
             password: ""
         });
 
+    const [activeFieldKey, setActiveFieldKey] =
+        useState("full_name");
+
+    const [draftValue, setDraftValue] =
+        useState("");
+
     const [message, setMessage] =
         useState("");
 
@@ -41,28 +97,50 @@ function ProfilePage() {
     const [loading, setLoading] =
         useState(false);
 
+    const activeField = useMemo(
+        () => profileFields.find((field) =>
+            field.key === activeFieldKey
+        ),
+        [activeFieldKey]
+    );
+
     useEffect(() => {
         loadProfile();
     }, []);
 
+    useEffect(() => {
+
+        if (activeField) {
+            setDraftValue(profile[activeField.key] || "");
+        }
+
+    }, [activeField, profile]);
+
+    const getAuthHeaders = () => {
+
+        const token =
+            localStorage.getItem("token");
+
+        return {
+            Authorization: `Bearer ${token}`
+        };
+    };
+
     const loadProfile = async () => {
 
-        try {
+        setError("");
 
-            const token =
-                localStorage.getItem("token");
+        try {
 
             const res =
                 await api.get(
                     "/users/me",
                     {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
+                        headers: getAuthHeaders()
                     }
                 );
 
-            setForm({
+            setProfile({
                 ...res.data,
                 password: ""
             });
@@ -73,43 +151,74 @@ function ProfilePage() {
         }
     };
 
-    const handleChange = (e) => {
+    const selectField = (field) => {
 
-        setForm({
-            ...form,
-            [e.target.name]: e.target.value
-        });
+        setMessage("");
+        setError("");
+        setActiveFieldKey(field.key);
+        setDraftValue(profile[field.key] || "");
     };
 
-    const saveProfile = async () => {
+    const cancelEdit = () => {
+
+        if (activeField) {
+            setDraftValue(profile[activeField.key] || "");
+        }
+    };
+
+    const saveActiveField = async () => {
+
+        if (!activeField) {
+            return;
+        }
 
         setMessage("");
         setError("");
         setLoading(true);
 
-        try {
+        const nextProfile = {
+            ...profile,
+            [activeField.key]: draftValue
+        };
 
-            const token =
-                localStorage.getItem("token");
+        try {
 
             await api.put(
                 "/users/me",
-                form,
+                nextProfile,
                 {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: getAuthHeaders()
                 }
             );
 
-            setMessage("Профиль обновлен.");
+            setProfile({
+                ...nextProfile,
+                password: ""
+            });
+
+            setDraftValue(
+                activeField.key === "password"
+                    ? ""
+                    : draftValue
+            );
+
+            setMessage(`Поле "${activeField.label}" обновлено.`);
 
         } catch (err) {
             console.error(err);
-            setError("Не удалось сохранить профиль.");
+            setError("Не удалось сохранить изменения.");
         } finally {
             setLoading(false);
         }
+    };
+
+    const getPreviewValue = (field) => {
+
+        if (field.preview) {
+            return field.preview;
+        }
+
+        return profile[field.key] || "Не заполнено";
     };
 
     return (
@@ -118,121 +227,166 @@ function ProfilePage() {
             <Navbar />
 
             <Container
-                maxWidth="md"
+                maxWidth="lg"
                 sx={{ py: 4 }}
             >
-                <Card>
-                    <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
-                        <Stack spacing={3}>
-                            <Box>
-                                <Typography variant="h4" gutterBottom>
-                                    Личный кабинет
-                                </Typography>
-                                <Typography color="text.secondary">
-                                    Контактные данные и адрес проживания.
-                                </Typography>
-                            </Box>
+                <Stack spacing={3}>
+                    <Box>
+                        <Typography variant="h4" gutterBottom>
+                            Личный кабинет
+                        </Typography>
+                        <Typography color="text.secondary">
+                            Выберите поле профиля, отредактируйте его и сохраните изменения.
+                        </Typography>
+                    </Box>
 
-                            {message && (
-                                <Alert severity="success">
-                                    {message}
-                                </Alert>
-                            )}
+                    {message && (
+                        <Alert severity="success">
+                            {message}
+                        </Alert>
+                    )}
 
-                            {error && (
-                                <Alert severity="error">
-                                    {error}
-                                </Alert>
-                            )}
+                    {error && (
+                        <Alert severity="error">
+                            {error}
+                        </Alert>
+                    )}
 
-                            <Box
-                                sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: {
-                                        xs: "1fr",
-                                        sm: "1fr 1fr"
-                                    },
-                                    gap: 2
-                                }}
-                            >
-                                <TextField
-                                    fullWidth
-                                    label="ФИО"
-                                    name="full_name"
-                                    value={form.full_name}
-                                    onChange={handleChange}
-                                />
+                    <Box
+                        sx={{
+                            display: "grid",
+                            gridTemplateColumns: {
+                                xs: "1fr",
+                                md: "1.3fr 0.9fr"
+                            },
+                            gap: 3,
+                            alignItems: "start"
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: "grid",
+                                gridTemplateColumns: {
+                                    xs: "1fr",
+                                    sm: "1fr 1fr"
+                                },
+                                gap: 2
+                            }}
+                        >
+                            {profileFields.map((field) => {
 
-                                <TextField
-                                    fullWidth
-                                    label="Email"
-                                    name="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                />
+                                const isActive =
+                                    field.key === activeFieldKey;
 
-                                <TextField
-                                    fullWidth
-                                    label="Телефон"
-                                    name="phone"
-                                    value={form.phone || ""}
-                                    onChange={handleChange}
-                                />
+                                return (
+                                    <Card
+                                        key={field.key}
+                                        sx={{
+                                            borderColor: isActive
+                                                ? "primary.main"
+                                                : "divider"
+                                        }}
+                                    >
+                                        <CardActionArea
+                                            onClick={() =>
+                                                selectField(field)
+                                            }
+                                        >
+                                            <CardContent>
+                                                <Stack spacing={1}>
+                                                    <Stack
+                                                        direction="row"
+                                                        justifyContent="space-between"
+                                                        alignItems="center"
+                                                        spacing={1}
+                                                    >
+                                                        <Typography
+                                                            variant="subtitle2"
+                                                            color="text.secondary"
+                                                        >
+                                                            {field.label}
+                                                        </Typography>
 
-                                <TextField
-                                    fullWidth
-                                    label="Новый пароль"
-                                    type="password"
-                                    name="password"
-                                    value={form.password}
-                                    onChange={handleChange}
-                                />
+                                                        {isActive && (
+                                                            <Chip
+                                                                size="small"
+                                                                color="primary"
+                                                                label="Активно"
+                                                            />
+                                                        )}
+                                                    </Stack>
 
-                                <TextField
-                                    fullWidth
-                                    label="Улица"
-                                    name="street"
-                                    value={form.street || ""}
-                                    onChange={handleChange}
-                                />
+                                                    <Typography
+                                                        variant="h6"
+                                                        sx={{
+                                                            wordBreak: "break-word"
+                                                        }}
+                                                    >
+                                                        {getPreviewValue(field)}
+                                                    </Typography>
 
-                                <Box
-                                    sx={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr 1fr",
-                                        gap: 2
-                                    }}
-                                >
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        {field.helperText}
+                                                    </Typography>
+                                                </Stack>
+                                            </CardContent>
+                                        </CardActionArea>
+                                    </Card>
+                                );
+                            })}
+                        </Box>
+
+                        <Card>
+                            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                                <Stack spacing={3}>
+                                    <Box>
+                                        <Typography variant="h5" gutterBottom>
+                                            Редактирование
+                                        </Typography>
+                                        <Typography color="text.secondary">
+                                            Сейчас выбрано поле: {activeField?.label}
+                                        </Typography>
+                                    </Box>
+
                                     <TextField
                                         fullWidth
-                                        label="Дом"
-                                        name="house"
-                                        value={form.house || ""}
-                                        onChange={handleChange}
+                                        label={activeField?.label}
+                                        type={activeField?.type || "text"}
+                                        value={draftValue}
+                                        helperText={activeField?.helperText}
+                                        onChange={(event) =>
+                                            setDraftValue(event.target.value)
+                                        }
                                     />
 
-                                    <TextField
-                                        fullWidth
-                                        label="Квартира"
-                                        name="apartment"
-                                        value={form.apartment || ""}
-                                        onChange={handleChange}
-                                    />
-                                </Box>
-                            </Box>
+                                    <Stack
+                                        direction={{ xs: "column", sm: "row" }}
+                                        spacing={1}
+                                    >
+                                        <Button
+                                            variant="contained"
+                                            disabled={loading}
+                                            onClick={saveActiveField}
+                                        >
+                                            {loading ? "Сохраняем..." : "Сохранить"}
+                                        </Button>
 
-                            <Button
-                                fullWidth
-                                variant="contained"
-                                size="large"
-                                disabled={loading}
-                                onClick={saveProfile}
-                            >
-                                {loading ? "Сохраняем..." : "Сохранить изменения"}
-                            </Button>
-                        </Stack>
-                    </CardContent>
-                </Card>
+                                        <Button
+                                            variant="outlined"
+                                            disabled={loading}
+                                            onClick={cancelEdit}
+                                        >
+                                            Отмена
+                                        </Button>
+                                    </Stack>
+                                </Stack>
+                            </CardContent>
+                        </Card>
+                    </Box>
+                </Stack>
             </Container>
         </Box>
     );
