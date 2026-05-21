@@ -14,9 +14,18 @@ import {
     Typography,
     Button,
     Box,
+    Chip,
     Container,
     Stack
 } from "@mui/material";
+
+
+const roleLabels = {
+    resident: "Жилец",
+    dispatcher: "Диспетчер",
+    admin: "Администратор",
+    executor: "Исполнитель"
+};
 
 
 function Navbar() {
@@ -90,12 +99,29 @@ function Navbar() {
                     }}
                 >
                     <Box sx={{ flexGrow: 1 }}>
-                        <Typography
-                            variant="h6"
-                            sx={{ lineHeight: 1.1 }}
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{ flexWrap: "wrap", rowGap: 1 }}
                         >
-                            ТСЖ Сервис
-                        </Typography>
+                            <Typography
+                                variant="h6"
+                                sx={{ lineHeight: 1.1 }}
+                            >
+                                ТСЖ Сервис
+                            </Typography>
+
+                            {role && (
+                                <Chip
+                                    size="small"
+                                    label={roleLabels[role] || role}
+                                    color={role === "dispatcher" ? "primary" : "default"}
+                                    variant={role === "dispatcher" ? "filled" : "outlined"}
+                                />
+                            )}
+                        </Stack>
+
                         <Typography
                             variant="caption"
                             color="text.secondary"
