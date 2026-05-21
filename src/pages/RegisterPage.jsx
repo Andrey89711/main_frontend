@@ -13,7 +13,9 @@ import {
     Button,
     Card,
     CardContent,
+    Checkbox,
     Container,
+    FormControlLabel,
     Stack,
     TextField,
     Typography
@@ -44,6 +46,9 @@ function RegisterPage() {
     const [loading, setLoading] =
         useState(false);
 
+    const [personalDataConsent, setPersonalDataConsent] =
+        useState(false);
+
     const handleChange = (e) => {
 
         setFormData({
@@ -64,6 +69,10 @@ function RegisterPage() {
             return "Пользователь с таким email уже существует.";
         }
 
+        if (detail === "Personal data processing consent is required") {
+            return "Необходимо дать согласие на обработку персональных данных.";
+        }
+
         return "Не удалось зарегистрироваться. Проверьте данные.";
     };
 
@@ -77,6 +86,11 @@ function RegisterPage() {
             return;
         }
 
+        if (!personalDataConsent) {
+            setError("Необходимо дать согласие на обработку персональных данных.");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -85,7 +99,8 @@ function RegisterPage() {
                 "/auth/register",
                 {
                     ...formData,
-                    role: "resident"
+                    role: "resident",
+                    personal_data_consent: true
                 }
             );
 
@@ -219,12 +234,26 @@ function RegisterPage() {
                                     />
                                 </Box>
 
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={personalDataConsent}
+                                            onChange={(event) =>
+                                                setPersonalDataConsent(
+                                                    event.target.checked
+                                                )
+                                            }
+                                        />
+                                    }
+                                    label="Я даю согласие на обработку персональных данных в соответствии с Федеральным законом № 152-ФЗ"
+                                />
+
                                 <Button
                                     fullWidth
                                     variant="contained"
                                     type="submit"
                                     size="large"
-                                    disabled={loading}
+                                    disabled={loading || !personalDataConsent}
                                 >
                                     {loading ? "Создаем аккаунт..." : "Зарегистрироваться"}
                                 </Button>

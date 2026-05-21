@@ -69,6 +69,12 @@ function CreateTicketPage() {
     const [addressId, setAddressId] =
         useState("");
 
+    const [categories, setCategories] =
+        useState([]);
+
+    const [categoryId, setCategoryId] =
+        useState("");
+
     const [message, setMessage] =
         useState("");
 
@@ -86,6 +92,7 @@ function CreateTicketPage() {
 
     useEffect(() => {
         loadAddresses();
+        loadCategories();
     }, []);
 
     const getAuthHeaders = () => {
@@ -122,12 +129,39 @@ function CreateTicketPage() {
         }
     };
 
+    const loadCategories = async () => {
+
+        try {
+
+            const response = await api.get(
+                "/categories/",
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setCategories(response.data);
+
+            if (response.data.length > 0) {
+                setCategoryId(String(response.data[0].id));
+            }
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить категории заявок.");
+        }
+    };
+
     const getApiError = (err) => {
 
         const detail = err.response?.data?.detail;
 
         if (detail === "Address is not verified or not linked to current user") {
             return "Нельзя создать заявку по неподтвержденному или чужому адресу.";
+        }
+
+        if (detail === "Invalid category") {
+            return "Выберите категорию проблемы.";
         }
 
         if (typeof detail === "string") {
@@ -143,7 +177,7 @@ function CreateTicketPage() {
 
     const buildPayload = (forceCreate = false) => ({
         description,
-        category_id: 1,
+        category_id: Number(categoryId),
         address_id: Number(addressId),
         force_create: forceCreate
     });
@@ -154,7 +188,7 @@ function CreateTicketPage() {
             "/tickets/check-similar",
             {
                 description,
-                category_id: 1,
+                category_id: Number(categoryId),
                 address_id: Number(addressId)
             },
             {
@@ -199,6 +233,11 @@ function CreateTicketPage() {
 
         if (!addressId) {
             setError("Выберите подтвержденный адрес.");
+            return;
+        }
+
+        if (!categoryId) {
+            setError("Выберите категорию проблемы.");
             return;
         }
 
@@ -297,7 +336,7 @@ function CreateTicketPage() {
                                     Создание заявки
                                 </Typography>
                                 <Typography color="text.secondary">
-                                    Система проверит похожие активные обращения по адресу и категории.
+                                    Выберите категорию — похожие заявки ищутся только внутри неё (тот же дом).
                                 </Typography>
                             </Box>
 
@@ -358,6 +397,29 @@ function CreateTicketPage() {
                                     </FormControl>
                                 )}
 
+                                <FormControl fullWidth required>
+                                    <InputLabel>
+                                        Категория проблемы
+                                    </InputLabel>
+                                    <Select
+                                        label="Категория проблемы"
+                                        value={categoryId}
+                                        disabled={hasNoVerifiedAddresses || categories.length === 0}
+                                        onChange={(event) =>
+                                            setCategoryId(event.target.value)
+                                        }
+                                    >
+                                        {categories.map((category) => (
+                                            <MenuItem
+                                                key={category.id}
+                                                value={String(category.id)}
+                                            >
+                                                {category.name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+
                                 <TextField
                                     fullWidth
                                     multiline
@@ -376,7 +438,7 @@ function CreateTicketPage() {
                                     type="submit"
                                     variant="contained"
                                     size="large"
-                                    disabled={loading || hasNoVerifiedAddresses}
+                                    disabled={loading || hasNoVerifiedAddresses || !categoryId}
                                 >
                                     {loading ? "Проверяем..." : "Отправить обращение"}
                                 </Button>
@@ -410,6 +472,11 @@ function CreateTicketPage() {
                                         <Typography variant="h6">
                                             Заявка #{match.id}
                                         </Typography>
+                                        {match.category_name && (
+                                            <Typography variant="body2" color="text.secondary">
+                                                Категория: {match.category_name}
+                                            </Typography>
+                                        )}
                                         <Typography variant="body2" color="text.secondary">
                                             Статус: {statusLabels[match.status] || match.status}
                                         </Typography>

@@ -161,6 +161,11 @@ function TicketDetailsPage() {
                                             variant="outlined"
                                         />
                                     </Stack>
+                                    {ticket.category?.name && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            Категория: {ticket.category.name}
+                                        </Typography>
+                                    )}
                                     <Typography>
                                         {ticket.description}
                                     </Typography>

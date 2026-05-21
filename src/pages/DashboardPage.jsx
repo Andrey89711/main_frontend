@@ -193,6 +193,12 @@ function DashboardPage() {
                                                 {ticket.description}
                                             </Typography>
 
+                                            {ticket.category?.name && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Категория: {ticket.category.name}
+                                                </Typography>
+                                            )}
+
                                             <Typography variant="body2">
                                                 Адрес:{" "}
                                                 {ticket.address
