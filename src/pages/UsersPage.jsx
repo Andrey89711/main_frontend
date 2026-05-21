@@ -6,8 +6,10 @@ import {
 import {
     Alert,
     Box,
+    Button,
     Card,
     CardContent,
+    Chip,
     Container,
     FormControl,
     InputLabel,
@@ -21,12 +23,21 @@ import api from "../api/api";
 import Navbar from "../components/Navbar";
 
 
+function formatAddress(address) {
+
+    return `${address.street}, д. ${address.house}, кв. ${address.apartment}`;
+}
+
+
 function UsersPage() {
 
     const [users, setUsers] =
         useState([]);
 
     const [roles, setRoles] =
+        useState([]);
+
+    const [pendingAddresses, setPendingAddresses] =
         useState([]);
 
     const [error, setError] =
@@ -55,28 +66,38 @@ function UsersPage() {
 
         try {
 
-            const [usersResponse, rolesResponse] =
-                await Promise.all([
-                    api.get(
-                        "/users/",
-                        {
-                            headers: getAuthHeaders()
-                        }
-                    ),
-                    api.get(
-                        "/users/roles",
-                        {
-                            headers: getAuthHeaders()
-                        }
-                    )
-                ]);
+            const [
+                usersResponse,
+                rolesResponse,
+                addressesResponse
+            ] = await Promise.all([
+                api.get(
+                    "/users/",
+                    {
+                        headers: getAuthHeaders()
+                    }
+                ),
+                api.get(
+                    "/users/roles",
+                    {
+                        headers: getAuthHeaders()
+                    }
+                ),
+                api.get(
+                    "/addresses/pending",
+                    {
+                        headers: getAuthHeaders()
+                    }
+                )
+            ]);
 
             setUsers(usersResponse.data);
             setRoles(rolesResponse.data);
+            setPendingAddresses(addressesResponse.data);
 
         } catch (err) {
             console.error(err);
-            setError("Не удалось загрузить пользователей.");
+            setError("Не удалось загрузить данные.");
         }
     };
 
@@ -127,6 +148,30 @@ function UsersPage() {
         }
     };
 
+    const verifyAddress = async (addressLinkId) => {
+
+        setError("");
+        setMessage("");
+
+        try {
+
+            await api.patch(
+                `/addresses/${addressLinkId}/verify`,
+                {},
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setMessage("Адрес подтвержден.");
+            loadData();
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось подтвердить адрес.");
+        }
+    };
+
     return (
 
         <Box sx={{ minHeight: "100vh" }}>
@@ -142,7 +187,7 @@ function UsersPage() {
                             Пользователи
                         </Typography>
                         <Typography color="text.secondary">
-                            Назначайте роли жильцам, диспетчерам, администраторам и исполнителям.
+                            Назначайте роли и подтверждайте адреса жильцов.
                         </Typography>
                     </Box>
 
@@ -158,6 +203,55 @@ function UsersPage() {
                         </Alert>
                     )}
 
+                    <Card>
+                        <CardContent>
+                            <Stack spacing={2}>
+                                <Typography variant="h5">
+                                    Адреса на подтверждение
+                                </Typography>
+
+                                {pendingAddresses.length === 0 && (
+                                    <Typography color="text.secondary">
+                                        Неподтвержденных адресов нет.
+                                    </Typography>
+                                )}
+
+                                {pendingAddresses.map((address) => (
+                                    <Card key={address.id}>
+                                        <CardContent>
+                                            <Stack
+                                                direction={{ xs: "column", md: "row" }}
+                                                spacing={2}
+                                                justifyContent="space-between"
+                                            >
+                                                <Box>
+                                                    <Typography variant="h6">
+                                                        {formatAddress(address)}
+                                                    </Typography>
+                                                    <Typography color="text.secondary">
+                                                        Лицевой счет: {address.personal_account}
+                                                    </Typography>
+                                                    <Typography color="text.secondary">
+                                                        Пользователь: {address.user?.full_name} ({address.user?.email})
+                                                    </Typography>
+                                                </Box>
+
+                                                <Button
+                                                    variant="contained"
+                                                    onClick={() =>
+                                                        verifyAddress(address.id)
+                                                    }
+                                                >
+                                                    Подтвердить
+                                                </Button>
+                                            </Stack>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </Stack>
+                        </CardContent>
+                    </Card>
+
                     <Stack spacing={2}>
                         {users.map((user) => (
                             <Card key={user.id}>
@@ -169,9 +263,23 @@ function UsersPage() {
                                         justifyContent="space-between"
                                     >
                                         <Box>
-                                            <Typography variant="h6">
-                                                {user.full_name}
-                                            </Typography>
+                                            <Stack
+                                                direction="row"
+                                                spacing={1}
+                                                alignItems="center"
+                                                sx={{ flexWrap: "wrap", rowGap: 1 }}
+                                            >
+                                                <Typography variant="h6">
+                                                    {user.full_name}
+                                                </Typography>
+                                                {user.is_current && (
+                                                    <Chip
+                                                        size="small"
+                                                        label="Вы"
+                                                        color="primary"
+                                                    />
+                                                )}
+                                            </Stack>
                                             <Typography color="text.secondary">
                                                 {user.email}
                                             </Typography>

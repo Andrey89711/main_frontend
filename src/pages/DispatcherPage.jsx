@@ -32,32 +32,50 @@ const statusColors = {
 };
 
 
+function formatAddress(address) {
+
+    return `${address.street}, д. ${address.house}, кв. ${address.apartment}`;
+}
+
+
 function DispatcherPage() {
 
     const [tickets, setTickets] =
         useState([]);
 
+    const [pendingAddresses, setPendingAddresses] =
+        useState([]);
+
     const [error, setError] =
+        useState("");
+
+    const [message, setMessage] =
         useState("");
 
     useEffect(() => {
         fetchTickets();
+        fetchPendingAddresses();
     }, []);
+
+    const getAuthHeaders = () => {
+
+        const token =
+            localStorage.getItem("token");
+
+        return {
+            Authorization: `Bearer ${token}`
+        };
+    };
 
     const fetchTickets = async () => {
 
         try {
 
-            const token =
-                localStorage.getItem("token");
-
             const response =
                 await api.get(
                     "/tickets/all",
                     {
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        }
+                        headers: getAuthHeaders()
                     }
                 );
 
@@ -69,6 +87,49 @@ function DispatcherPage() {
         }
     };
 
+    const fetchPendingAddresses = async () => {
+
+        try {
+
+            const response =
+                await api.get(
+                    "/addresses/pending",
+                    {
+                        headers: getAuthHeaders()
+                    }
+                );
+
+            setPendingAddresses(response.data);
+
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const verifyAddress = async (addressLinkId) => {
+
+        setError("");
+        setMessage("");
+
+        try {
+
+            await api.patch(
+                `/addresses/${addressLinkId}/verify`,
+                {},
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setMessage("Адрес подтвержден.");
+            fetchPendingAddresses();
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось подтвердить адрес.");
+        }
+    };
+
     const updateStatus = async (
         ticketId,
         newStatus
@@ -76,16 +137,11 @@ function DispatcherPage() {
 
         try {
 
-            const token =
-                localStorage.getItem("token");
-
             await api.patch(
                 `/tickets/${ticketId}/status?new_status=${newStatus}`,
                 {},
                 {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: getAuthHeaders()
                 }
             );
 
@@ -112,15 +168,70 @@ function DispatcherPage() {
                             Панель диспетчера
                         </Typography>
                         <Typography color="text.secondary">
-                            Обрабатывайте обращения жильцов и обновляйте статусы.
+                            Обрабатывайте заявки и подтверждайте адреса жильцов.
                         </Typography>
                     </Box>
+
+                    {message && (
+                        <Alert severity="success">
+                            {message}
+                        </Alert>
+                    )}
 
                     {error && (
                         <Alert severity="error">
                             {error}
                         </Alert>
                     )}
+
+                    <Card>
+                        <CardContent>
+                            <Stack spacing={2}>
+                                <Typography variant="h5">
+                                    Адреса на подтверждение
+                                </Typography>
+
+                                {pendingAddresses.length === 0 && (
+                                    <Typography color="text.secondary">
+                                        Неподтвержденных адресов нет.
+                                    </Typography>
+                                )}
+
+                                {pendingAddresses.map((address) => (
+                                    <Card key={address.id}>
+                                        <CardContent>
+                                            <Stack
+                                                direction={{ xs: "column", md: "row" }}
+                                                spacing={2}
+                                                justifyContent="space-between"
+                                            >
+                                                <Box>
+                                                    <Typography variant="h6">
+                                                        {formatAddress(address)}
+                                                    </Typography>
+                                                    <Typography color="text.secondary">
+                                                        Лицевой счет: {address.personal_account}
+                                                    </Typography>
+                                                    <Typography color="text.secondary">
+                                                        Пользователь: {address.user?.full_name} ({address.user?.email})
+                                                    </Typography>
+                                                </Box>
+
+                                                <Button
+                                                    variant="contained"
+                                                    onClick={() =>
+                                                        verifyAddress(address.id)
+                                                    }
+                                                >
+                                                    Подтвердить
+                                                </Button>
+                                            </Stack>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </Stack>
+                        </CardContent>
+                    </Card>
 
                     <Stack spacing={2}>
                         {tickets.length === 0 && !error && (
@@ -167,15 +278,8 @@ function DispatcherPage() {
                                             <Typography variant="body2">
                                                 Адрес:{" "}
                                                 {ticket.address
-                                                    ? `${ticket.address.street}, д. ${ticket.address.house}, кв. ${ticket.address.apartment}`
+                                                    ? formatAddress(ticket.address)
                                                     : "не указан"}
-                                            </Typography>
-
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                            >
-                                                Приоритет: {ticket.priority}
                                             </Typography>
                                         </Stack>
 

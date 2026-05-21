@@ -1,4 +1,5 @@
 import {
+    useEffect,
     useState
 } from "react";
 
@@ -9,6 +10,10 @@ import {
     Card,
     CardContent,
     Container,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
     Stack,
     TextField,
     Typography
@@ -18,9 +23,21 @@ import api from "../api/api";
 import Navbar from "../components/Navbar";
 
 
+function formatAddress(address) {
+
+    return `${address.street}, д. ${address.house}, кв. ${address.apartment}`;
+}
+
+
 function CreateTicketPage() {
 
     const [description, setDescription] =
+        useState("");
+
+    const [addresses, setAddresses] =
+        useState([]);
+
+    const [addressId, setAddressId] =
         useState("");
 
     const [message, setMessage] =
@@ -32,9 +49,51 @@ function CreateTicketPage() {
     const [loading, setLoading] =
         useState(false);
 
+    useEffect(() => {
+        loadAddresses();
+    }, []);
+
+    const getAuthHeaders = () => {
+
+        const token =
+            localStorage.getItem("token");
+
+        return {
+            Authorization: `Bearer ${token}`
+        };
+    };
+
+    const loadAddresses = async () => {
+
+        try {
+
+            const response =
+                await api.get(
+                    "/addresses/my/verified",
+                    {
+                        headers: getAuthHeaders()
+                    }
+                );
+
+            setAddresses(response.data);
+
+            if (response.data.length === 1) {
+                setAddressId(response.data[0].address_id);
+            }
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить подтвержденные адреса.");
+        }
+    };
+
     const getApiError = (err) => {
 
         const detail = err.response?.data?.detail;
+
+        if (detail === "Address is not verified or not linked to current user") {
+            return "Нельзя создать заявку по неподтвержденному или чужому адресу.";
+        }
 
         if (typeof detail === "string") {
             return detail;
@@ -48,23 +107,25 @@ function CreateTicketPage() {
         e.preventDefault();
         setMessage("");
         setError("");
+
+        if (!addressId) {
+            setError("Выберите подтвержденный адрес.");
+            return;
+        }
+
         setLoading(true);
 
         try {
-
-            const token =
-                localStorage.getItem("token");
 
             await api.post(
                 "/tickets/",
                 {
                     description,
-                    category_id: 1
+                    category_id: 1,
+                    address_id: Number(addressId)
                 },
                 {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
+                    headers: getAuthHeaders()
                 }
             );
 
@@ -78,6 +139,9 @@ function CreateTicketPage() {
             setLoading(false);
         }
     };
+
+    const hasNoVerifiedAddresses =
+        addresses.length === 0;
 
     return (
 
@@ -96,9 +160,15 @@ function CreateTicketPage() {
                                     Создание заявки
                                 </Typography>
                                 <Typography color="text.secondary">
-                                    Опишите проблему, а адрес будет подтянут из вашего профиля.
+                                    Выберите подтвержденный адрес и опишите проблему.
                                 </Typography>
                             </Box>
+
+                            {hasNoVerifiedAddresses && (
+                                <Alert severity="warning">
+                                    У вас нет подтвержденных адресов. Добавьте адрес в профиле и дождитесь подтверждения.
+                                </Alert>
+                            )}
 
                             {message && (
                                 <Alert severity="success">
@@ -117,6 +187,40 @@ function CreateTicketPage() {
                                 spacing={2}
                                 onSubmit={handleSubmit}
                             >
+                                {addresses.length === 1 && (
+                                    <TextField
+                                        label="Адрес"
+                                        value={formatAddress(addresses[0])}
+                                        disabled
+                                        fullWidth
+                                    />
+                                )}
+
+                                {addresses.length > 1 && (
+                                    <FormControl fullWidth>
+                                        <InputLabel>
+                                            Адрес
+                                        </InputLabel>
+                                        <Select
+                                            label="Адрес"
+                                            value={addressId}
+                                            required
+                                            onChange={(event) =>
+                                                setAddressId(event.target.value)
+                                            }
+                                        >
+                                            {addresses.map((address) => (
+                                                <MenuItem
+                                                    key={address.id}
+                                                    value={address.address_id}
+                                                >
+                                                    {formatAddress(address)}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+
                                 <TextField
                                     fullWidth
                                     multiline
@@ -125,6 +229,7 @@ function CreateTicketPage() {
                                     placeholder="Например: в подъезде не работает освещение..."
                                     value={description}
                                     required
+                                    disabled={hasNoVerifiedAddresses}
                                     onChange={(e) =>
                                         setDescription(e.target.value)
                                     }
@@ -134,7 +239,7 @@ function CreateTicketPage() {
                                     type="submit"
                                     variant="contained"
                                     size="large"
-                                    disabled={loading}
+                                    disabled={loading || hasNoVerifiedAddresses}
                                 >
                                     {loading ? "Отправляем..." : "Создать заявку"}
                                 </Button>

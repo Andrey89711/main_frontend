@@ -42,24 +42,6 @@ const profileFields = [
         helperText: "Контактный номер для связи"
     },
     {
-        key: "street",
-        label: "Улица",
-        type: "text",
-        helperText: "Адрес проживания"
-    },
-    {
-        key: "house",
-        label: "Дом",
-        type: "text",
-        helperText: "Номер дома или корпуса"
-    },
-    {
-        key: "apartment",
-        label: "Квартира",
-        type: "text",
-        helperText: "Номер квартиры"
-    },
-    {
         key: "password",
         label: "Пароль",
         type: "password",
@@ -67,6 +49,19 @@ const profileFields = [
         preview: "Не отображается"
     }
 ];
+
+const emptyAddress = {
+    street: "",
+    house: "",
+    apartment: "",
+    personal_account: ""
+};
+
+
+function formatAddress(address) {
+
+    return `${address.street}, д. ${address.house}, кв. ${address.apartment}`;
+}
 
 
 function ProfilePage() {
@@ -76,11 +71,17 @@ function ProfilePage() {
             full_name: "",
             email: "",
             phone: "",
-            street: "",
-            house: "",
-            apartment: "",
             password: ""
         });
+
+    const [addresses, setAddresses] =
+        useState([]);
+
+    const [addressForm, setAddressForm] =
+        useState(emptyAddress);
+
+    const [editingAddressId, setEditingAddressId] =
+        useState(null);
 
     const [activeFieldKey, setActiveFieldKey] =
         useState("full_name");
@@ -106,6 +107,7 @@ function ProfilePage() {
 
     useEffect(() => {
         loadProfile();
+        loadAddresses();
     }, []);
 
     useEffect(() => {
@@ -128,8 +130,6 @@ function ProfilePage() {
 
     const loadProfile = async () => {
 
-        setError("");
-
         try {
 
             const res =
@@ -141,13 +141,35 @@ function ProfilePage() {
                 );
 
             setProfile({
-                ...res.data,
+                full_name: res.data.full_name || "",
+                email: res.data.email || "",
+                phone: res.data.phone || "",
                 password: ""
             });
 
         } catch (err) {
             console.error(err);
             setError("Не удалось загрузить профиль.");
+        }
+    };
+
+    const loadAddresses = async () => {
+
+        try {
+
+            const res =
+                await api.get(
+                    "/addresses/my",
+                    {
+                        headers: getAuthHeaders()
+                    }
+                );
+
+            setAddresses(res.data);
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось загрузить адреса.");
         }
     };
 
@@ -221,6 +243,113 @@ function ProfilePage() {
         return profile[field.key] || "Не заполнено";
     };
 
+    const handleAddressChange = (event) => {
+
+        setAddressForm({
+            ...addressForm,
+            [event.target.name]: event.target.value
+        });
+    };
+
+    const startEditAddress = (address) => {
+
+        setEditingAddressId(address.id);
+        setAddressForm({
+            street: address.street || "",
+            house: address.house || "",
+            apartment: address.apartment || "",
+            personal_account: address.personal_account || ""
+        });
+    };
+
+    const resetAddressForm = () => {
+
+        setEditingAddressId(null);
+        setAddressForm(emptyAddress);
+    };
+
+    const saveAddress = async () => {
+
+        setMessage("");
+        setError("");
+
+        try {
+
+            if (editingAddressId) {
+
+                await api.put(
+                    `/addresses/my/${editingAddressId}`,
+                    addressForm,
+                    {
+                        headers: getAuthHeaders()
+                    }
+                );
+
+                setMessage("Адрес обновлен и ожидает повторного подтверждения.");
+
+            } else {
+
+                await api.post(
+                    "/addresses/my",
+                    addressForm,
+                    {
+                        headers: getAuthHeaders()
+                    }
+                );
+
+                setMessage("Адрес добавлен и ожидает подтверждения.");
+            }
+
+            resetAddressForm();
+            loadAddresses();
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось сохранить адрес.");
+        }
+    };
+
+    const setPrimaryAddress = async (addressId) => {
+
+        try {
+
+            await api.patch(
+                `/addresses/my/${addressId}/primary`,
+                {},
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setMessage("Основной адрес обновлен.");
+            loadAddresses();
+
+        } catch (err) {
+            console.error(err);
+            setError("Не удалось выбрать основной адрес.");
+        }
+    };
+
+    const deleteAddress = async (addressId) => {
+
+        try {
+
+            await api.delete(
+                `/addresses/my/${addressId}`,
+                {
+                    headers: getAuthHeaders()
+                }
+            );
+
+            setMessage("Адрес удален.");
+            loadAddresses();
+
+        } catch (err) {
+            console.error(err);
+            setError("Нельзя удалить адрес с активными заявками.");
+        }
+    };
+
     return (
 
         <Box sx={{ minHeight: "100vh" }}>
@@ -236,7 +365,7 @@ function ProfilePage() {
                             Личный кабинет
                         </Typography>
                         <Typography color="text.secondary">
-                            Выберите поле профиля, отредактируйте его и сохраните изменения.
+                            Управляйте контактами и адресами недвижимости.
                         </Typography>
                     </Box>
 
@@ -316,12 +445,7 @@ function ProfilePage() {
                                                         )}
                                                     </Stack>
 
-                                                    <Typography
-                                                        variant="h6"
-                                                        sx={{
-                                                            wordBreak: "break-word"
-                                                        }}
-                                                    >
+                                                    <Typography variant="h6">
                                                         {getPreviewValue(field)}
                                                     </Typography>
 
@@ -386,6 +510,150 @@ function ProfilePage() {
                             </CardContent>
                         </Card>
                     </Box>
+
+                    <Card>
+                        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+                            <Stack spacing={3}>
+                                <Box>
+                                    <Typography variant="h5" gutterBottom>
+                                        Мои адреса
+                                    </Typography>
+                                    <Typography color="text.secondary">
+                                        Заявки можно создавать только по подтвержденным адресам.
+                                    </Typography>
+                                </Box>
+
+                                <Box
+                                    sx={{
+                                        display: "grid",
+                                        gridTemplateColumns: {
+                                            xs: "1fr",
+                                            sm: "repeat(4, 1fr)"
+                                        },
+                                        gap: 2
+                                    }}
+                                >
+                                    <TextField
+                                        label="Улица"
+                                        name="street"
+                                        value={addressForm.street}
+                                        onChange={handleAddressChange}
+                                    />
+                                    <TextField
+                                        label="Дом"
+                                        name="house"
+                                        value={addressForm.house}
+                                        onChange={handleAddressChange}
+                                    />
+                                    <TextField
+                                        label="Квартира"
+                                        name="apartment"
+                                        value={addressForm.apartment}
+                                        onChange={handleAddressChange}
+                                    />
+                                    <TextField
+                                        label="Лицевой счет"
+                                        name="personal_account"
+                                        value={addressForm.personal_account}
+                                        onChange={handleAddressChange}
+                                    />
+                                </Box>
+
+                                <Stack
+                                    direction={{ xs: "column", sm: "row" }}
+                                    spacing={1}
+                                >
+                                    <Button
+                                        variant="contained"
+                                        onClick={saveAddress}
+                                    >
+                                        {editingAddressId ? "Сохранить адрес" : "Добавить адрес"}
+                                    </Button>
+
+                                    {editingAddressId && (
+                                        <Button
+                                            variant="outlined"
+                                            onClick={resetAddressForm}
+                                        >
+                                            Отмена
+                                        </Button>
+                                    )}
+                                </Stack>
+
+                                <Stack spacing={2}>
+                                    {addresses.map((address) => (
+                                        <Card key={address.id}>
+                                            <CardContent>
+                                                <Stack
+                                                    direction={{ xs: "column", md: "row" }}
+                                                    spacing={2}
+                                                    justifyContent="space-between"
+                                                >
+                                                    <Stack spacing={1}>
+                                                        <Typography variant="h6">
+                                                            {formatAddress(address)}
+                                                        </Typography>
+                                                        <Typography color="text.secondary">
+                                                            Лицевой счет: {address.personal_account}
+                                                        </Typography>
+                                                        <Stack
+                                                            direction="row"
+                                                            spacing={1}
+                                                            sx={{ flexWrap: "wrap", rowGap: 1 }}
+                                                        >
+                                                            <Chip
+                                                                label={address.is_verified ? "Подтвержден" : "Не подтвержден"}
+                                                                color={address.is_verified ? "success" : "warning"}
+                                                            />
+                                                            {address.is_primary && (
+                                                                <Chip
+                                                                    label="Основной"
+                                                                    color="primary"
+                                                                    variant="outlined"
+                                                                />
+                                                            )}
+                                                        </Stack>
+                                                    </Stack>
+
+                                                    <Stack
+                                                        direction={{ xs: "column", sm: "row" }}
+                                                        spacing={1}
+                                                    >
+                                                        <Button
+                                                            variant="outlined"
+                                                            onClick={() =>
+                                                                startEditAddress(address)
+                                                            }
+                                                        >
+                                                            Изменить
+                                                        </Button>
+                                                        <Button
+                                                            variant="outlined"
+                                                            disabled={address.is_primary}
+                                                            onClick={() =>
+                                                                setPrimaryAddress(address.id)
+                                                            }
+                                                        >
+                                                            Основной
+                                                        </Button>
+                                                        <Button
+                                                            color="error"
+                                                            variant="outlined"
+                                                            onClick={() =>
+                                                                deleteAddress(address.id)
+                                                            }
+                                                        >
+                                                            Удалить
+                                                        </Button>
+                                                    </Stack>
+                                                </Stack>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </Stack>
+                            </Stack>
+                        </CardContent>
+                    </Card>
                 </Stack>
             </Container>
         </Box>

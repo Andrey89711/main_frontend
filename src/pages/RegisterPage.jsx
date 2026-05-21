@@ -34,7 +34,8 @@ function RegisterPage() {
             password: "",
             street: "",
             house: "",
-            apartment: ""
+            apartment: "",
+            personal_account: ""
         });
 
     const [error, setError] =
@@ -56,15 +57,6 @@ function RegisterPage() {
         const detail = err.response?.data?.detail;
 
         if (Array.isArray(detail)) {
-
-            const passwordError = detail.find((item) =>
-                item.loc?.includes("password")
-            );
-
-            if (passwordError) {
-                return "Пароль должен содержать минимум 5 символов.";
-            }
-
             return "Проверьте корректность заполненных полей.";
         }
 
@@ -126,7 +118,7 @@ function RegisterPage() {
                                     Регистрация жильца
                                 </Typography>
                                 <Typography color="text.secondary">
-                                    Укажите контакты и адрес, чтобы заявки автоматически привязывались к квартире.
+                                    Укажите контакты и адрес. После регистрации адрес будет ожидать подтверждения.
                                 </Typography>
                             </Box>
 
@@ -199,31 +191,32 @@ function RegisterPage() {
                                         onChange={handleChange}
                                     />
 
-                                    <Box
-                                        sx={{
-                                            display: "grid",
-                                            gridTemplateColumns: "1fr 1fr",
-                                            gap: 2
-                                        }}
-                                    >
-                                        <TextField
-                                            label="Дом"
-                                            name="house"
-                                            value={formData.house}
-                                            required
-                                            fullWidth
-                                            onChange={handleChange}
-                                        />
+                                    <TextField
+                                        label="Лицевой счет"
+                                        name="personal_account"
+                                        value={formData.personal_account}
+                                        required
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
 
-                                        <TextField
-                                            label="Квартира"
-                                            name="apartment"
-                                            value={formData.apartment}
-                                            required
-                                            fullWidth
-                                            onChange={handleChange}
-                                        />
-                                    </Box>
+                                    <TextField
+                                        label="Дом"
+                                        name="house"
+                                        value={formData.house}
+                                        required
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
+
+                                    <TextField
+                                        label="Квартира"
+                                        name="apartment"
+                                        value={formData.apartment}
+                                        required
+                                        fullWidth
+                                        onChange={handleChange}
+                                    />
                                 </Box>
 
                                 <Button
